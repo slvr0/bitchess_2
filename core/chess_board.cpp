@@ -146,10 +146,9 @@ void ChessBoard::set_from_fen(std::string fen_string)
         castling_.setWe_000(castlings.find('Q') != std::string::npos);
         castling_.setEnemy_00(castlings.find('k') != std::string::npos);
         castling_.setEnemy_000(castlings.find('q') != std::string::npos);
-
 }
 
-std::vector<char> ChessBoard::_fill_printer(const int &print_mode, char spec_type)
+std::vector<char> ChessBoard::_fill_printer(const int &print_mode, char spec_type) const
 {
     std::vector<char> printer;
 
@@ -173,7 +172,7 @@ std::vector<char> ChessBoard::_fill_printer(const int &print_mode, char spec_typ
     return printer;
 }
 
-void ChessBoard::print_to_console(const int& print_mode, char spec_type )
+void ChessBoard::print_to_console(const int& print_mode, char spec_type ) const
 {
     auto printer = _fill_printer(print_mode, spec_type);
     int idx = 56;
@@ -198,10 +197,9 @@ void ChessBoard::print_to_console(const int& print_mode, char spec_type )
             std::cout << " |" << printer.at(idx);
             idx += 1;
         }
-    }
-
-    print("\n");
+    }   
     print("___A__B__C__D__E__F__G__H__");
+    print("\n");
 }
 
 void ChessBoard::print_bitboard(const uint64_t &bitboard)

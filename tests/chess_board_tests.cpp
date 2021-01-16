@@ -1,6 +1,6 @@
 #pragma once
 
-#include "chess_board.h"
+#include "core/chess_board.h"
 
 void run_chessboard_test()
 {
