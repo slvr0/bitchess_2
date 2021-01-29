@@ -15,15 +15,10 @@ static uint64_t* bishop_lookup_[64];
 
 uint64_t get_rook_attacks(const uint64_t & occ, const unsigned long idx)
 {
-
     uint64_t occ_c = occ & rook_mask[idx];
 
     occ_c *= rook_magic_numbers[idx];
     occ_c >>= 64 - rook_shifts[idx];
-
-//    ChessBoard cb;
-//    print(idx);
-//    cb.print_bitboard(rook_attacks_[idx]);
 
     return rook_lookup_[idx][occ_c];
 }
@@ -118,11 +113,9 @@ static void     _init_tables(const std::vector<Direction> &directions, bool rook
                 {
                     occupation_mask *= bishop_magic_numbers[idx];
                     occupation_mask >>= 64 - bishop_shifts[idx];
-
                 }
 
                 int n_idx = int(offset + occupation_mask);
-
 
                 if(rooks && occupation_mask >1ULL <<  rook_shifts[idx]) print("sanity check wrong on rook indexing \n");
                 else if(!rooks && occupation_mask > 1ULL <<  bishop_shifts[idx]) print("sanity check wrong on bishop indexing \n");
@@ -132,9 +125,6 @@ static void     _init_tables(const std::vector<Direction> &directions, bool rook
 
                 nr_filled++;
             }
-
-            if(rooks) offset += 1ULL << rook_shifts[idx];
-            else offset += 1ULL << bishop_shifts[idx];
         }
 
         std::string type = rooks ? "Rooks" : "Bishops";
@@ -144,7 +134,7 @@ static void     _init_tables(const std::vector<Direction> &directions, bool rook
         else is_bishop_set = true;
 }
 
-static void _init_king_tables()
+static void  _init_king_tables()
 {
         std::vector<Direction> kd {Direction(1, 1), Direction(1, -1), Direction(-1, 1), Direction(-1, -1), Direction(1, 0), Direction(-1,0), Direction(0,1), Direction(0, -1)};
 

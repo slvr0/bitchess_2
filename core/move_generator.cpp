@@ -1,13 +1,19 @@
 #include "move_generator.h"
 
 #include "utils/global_utils.cpp"
-#include "core/chess_attack_tables.h"
 #include "core/chess_move.h"
+
+#include "chess_attack_tables.h"
 
 MoveGenerator::MoveGenerator()
 {
-    
+
 }
+
+ uint64_t MoveGenerator::get_kingmoves(unsigned long idx)
+ {
+     return get_king_moves(idx);
+ }
 
 ChessMoveList MoveGenerator::get_legal_moves(const ChessBoard &cb)
 {
@@ -28,17 +34,21 @@ ChessMoveList MoveGenerator::get_legal_moves(const ChessBoard &cb)
     uint64_t attack_mask {0x0};
     uint64_t attack_mask_noking{0x0};
 
-    uint64_t king_moves{0x0}; //this can also just be indexed, havent found a table for this yet
+    uint64_t our_king_moves{0x0}; //this can also just be indexed, havent found a table for this yet
 
-     //could do bit iter over occ here instead. try it later
+     //could do bit iter over occ here instead. try it later (wasnt faster, bit iter is kinda slow)
+
+    const uint64_t king = cb.get_king();
 
     for(int idx = 0 ; idx < 64 ; ++idx)
     {
         if (1ULL << idx & cb.get_king())
-        {
-            king_moves = get_king_moves(idx);
+        {            
+            our_king_moves = get_kingmoves(idx);
+
             found_king = true;
             king_idx = idx;
+
             pp_info = get_push_pin_info(idx, our_pieces, enemy_pieces, cb.get_enemy_bishops(), cb.get_enemy_rooks(), cb.get_enemy_queens());
         }
         else if(1ULL << idx & cb.get_pawns()) append_pseudolegal_pawnmoves(cb, idx, movelist);
@@ -49,7 +59,7 @@ ChessMoveList MoveGenerator::get_legal_moves(const ChessBoard &cb)
 
         else if( 1ULL << idx & cb.get_enemy_pawns())
         {
-            uint64_t attacks = pawn_attacks_rev[idx];
+            uint64_t attacks = get_pawn_attacks_rev(idx);
             if (attacks & cb.get_king())
             {
                 non_slider_attackers++;
@@ -59,7 +69,7 @@ ChessMoveList MoveGenerator::get_legal_moves(const ChessBoard &cb)
         }
         else if( 1ULL << idx & cb.get_enemy_knights())
         {
-          uint64_t attacks = knight_attacks[idx];
+          uint64_t attacks = get_knight_attacks(idx);
           attack_mask |= attacks;
           attack_mask_noking |= attacks;
 
@@ -69,29 +79,31 @@ ChessMoveList MoveGenerator::get_legal_moves(const ChessBoard &cb)
               non_slider_attackers++;
           }
         }
-        else if( 1ULL << idx & cb.get_enemy_bishops())
+        else if( (1ULL << idx) & cb.get_enemy_bishops())
         {
             uint64_t attacks = get_bishop_attacks(occ, idx);
-            uint64_t attacks_noking = get_bishop_attacks(occ - cb.get_king(), idx);
+            uint64_t attacks_noking = get_bishop_attacks(occ & ~king, idx);
             attack_mask |= attacks;
             attack_mask_noking |= attacks_noking;
         }
-        else if( 1ULL << idx & cb.get_enemy_rooks())
+        else if( (1ULL << idx) & cb.get_enemy_rooks())
         {
             uint64_t attacks = get_rook_attacks(occ, idx);
-            uint64_t attacks_noking = get_rook_attacks(occ - cb.get_king(), idx);
+            uint64_t attacks_noking = get_rook_attacks(occ & ~king, idx);
+
             attack_mask |= attacks;
             attack_mask_noking |= attacks_noking;
         }
-        else if( 1ULL << idx & cb.get_enemy_queens())
+        else if( (1ULL << idx )& cb.get_enemy_queens())
         {
           uint64_t attacks = get_bishop_attacks(occ, idx) | get_rook_attacks(occ, idx);
-          uint64_t attacks_noking = get_bishop_attacks(occ - cb.get_king(), idx) | get_rook_attacks(occ - cb.get_king(), idx);
+
+          uint64_t attacks_noking = get_bishop_attacks(occ & ~king, idx) | get_rook_attacks(occ & ~king, idx);
+
           attack_mask |= attacks;
           attack_mask_noking |= attacks_noking;
         }
-
-        else if( 1ULL << idx & cb.get_enemy_king())
+        else if( (1ULL << idx) & cb.get_enemy_king())
         {
             uint64_t  attacks = get_king_moves(idx);
             attack_mask |= attacks;
@@ -102,24 +114,34 @@ ChessMoveList MoveGenerator::get_legal_moves(const ChessBoard &cb)
     pp_info.n_attackers += non_slider_attackers;
     pp_info.capture_mask |= knight_capture_mask;
 
-    king_moves &= ~our_pieces;
-    king_moves &= ~attack_mask_noking;
-    king_moves &= ~cb.get_enemy_king();
+    our_king_moves &= ~our_pieces;
+    our_king_moves &= ~attack_mask_noking;
+
+    our_king_moves &= ~cb.get_enemy_king();
 
     //finally remove movement to protected enemy pieces
-    king_moves &= ~(attack_mask_noking & enemy_pieces);
-
-    auto k_move_idcs = bit_iter(king_moves);
+    our_king_moves &= ~(attack_mask_noking & enemy_pieces);
 
    ChessMoveList legal_movelist;
 
-   for(const auto & move : k_move_idcs)  legal_movelist.add_move(ChessMove(king_idx, move, 'K'));
+   int idx_count = pop_count(our_king_moves);
+
+   for(int i = 0; i< idx_count; ++i)
+   {
+       unsigned long lb = least_bit(our_king_moves);
+
+       //do logic with lb right away;
+       legal_movelist.add_move(ChessMove(king_idx, lb, 'K'));
+
+       if(our_king_moves == 0) break;
+
+       our_king_moves ^= 1ULL << lb;
+   }
 
    if(pp_info.n_attackers > 1) return legal_movelist;
 
    //now check which moves are legal or not based on the Pin Push Capture information collected
 
-   int m_idx = 0;
    for(const auto & move : movelist.get_moves())
    {
        int from = move.from();
@@ -192,13 +214,6 @@ ChessMoveList MoveGenerator::get_legal_moves(const ChessBoard &cb)
     }
  return legal_movelist;
 }
-
-uint64_t MoveGenerator::get_king_moves(unsigned long idx)
-{
-
-}
-
-
 
 PushPinInfo MoveGenerator::get_push_pin_info(const unsigned long &king, const uint64_t &our_pieces, const uint64_t &enemy_pieces, const uint64_t &enemy_bishops, const uint64_t &enemy_rooks, const uint64_t &enemy_queens)
 {
@@ -294,47 +309,63 @@ void MoveGenerator::append_pseudolegal_slidermoves(const ChessBoard &cb,  unsign
 
     if (ptype == 'N')
     {
-        atc_64 = knight_attacks[idx] & ~(cb.get_our_pieces() | cb.get_enemy_king());
+        atc_64 =get_knight_attacks(idx) & ~cb.get_our_pieces();
     }
     else if (ptype == 'B')
     {
-        atc_64 =       get_bishop_attacks(cb.get_occ(), idx) & ~(cb.get_our_pieces() | cb.get_enemy_king());
+        atc_64 = get_bishop_attacks(cb.get_occ(), idx) & ~cb.get_our_pieces();
     }
     else if (ptype =='R')
     {
-        atc_64 =       get_rook_attacks(cb.get_occ(), idx) & ~(cb.get_our_pieces() | cb.get_enemy_king());
+        atc_64 = get_rook_attacks(cb.get_occ(), idx) & ~cb.get_our_pieces();
     }
     else if (ptype == 'Q')
     {
-        atc_64 =       get_bishop_attacks(cb.get_occ(), idx) & ~(cb.get_our_pieces() | cb.get_enemy_king());
-        atc_64 |=       get_rook_attacks(cb.get_occ(), idx) & ~(cb.get_our_pieces() | cb.get_enemy_king());
+        atc_64 =       get_bishop_attacks(cb.get_occ(), idx) & ~cb.get_our_pieces();
+        atc_64 |=       get_rook_attacks(cb.get_occ(), idx) & ~cb.get_our_pieces();
     }
-
     else return ;
 
-    for(const auto & square : bit_iter(atc_64))
+    int idx_count = pop_count(atc_64);
+
+    for(int i = 0; i< idx_count; ++i)
     {
-        movelist.add_move(ChessMove(idx, square, ptype));
+        unsigned long lb = least_bit(atc_64);
+
+        movelist.add_move(ChessMove(idx, lb  , ptype));
+
+        atc_64 ^= 1ULL << lb;
+
+        if(atc_64 == 0) break;
     }
 }
 
 void MoveGenerator::append_pseudolegal_pawnmoves(const ChessBoard &cb, unsigned long idx, ChessMoveList &movelist)
 {
-    char ptype {'P'};
+    char ptype = 'P';
     int enp_sq = cb.get_enpassant();
-    uint64_t p_atc_64 = pawn_attacks[idx] & ~cb.get_enemy_king();
-    auto p_sq_idcs = bit_iter(p_atc_64);
 
-    for (const auto & square : p_sq_idcs)
+    uint64_t p_atc_64 = get_pawn_attacks(idx) & ~cb.get_enemy_king();
+
+    int idx_count = pop_count(p_atc_64);
+
+    for(int i = 0; i< idx_count; ++i)
     {
-        if (enp_sq == square)
+        unsigned long lb = least_bit(p_atc_64);
+
+        //do logic with lb right away;
+        if (enp_sq == static_cast<int>(lb))
         {
-            if (spec_enp_check(cb, square))movelist.add_move(ChessMove(int(idx), int(square), ptype, "enp"));
+            if (spec_enp_check(cb, lb))movelist.add_move(ChessMove(int(idx), int(lb), ptype, "enp"));
         }
-        else if(1ULL << square & cb.get_enemy_pieces()) movelist.add_move(ChessMove(square, enp_sq, ptype));
+        else if((1ULL << lb) & cb.get_enemy_pieces()) movelist.add_move(ChessMove(idx, lb, ptype));
+
+        p_atc_64 ^= 1ULL << lb;
+
+        if(p_atc_64 == 0) break;
     }
 
-    if((1ULL << (idx + 8) & cb.get_occ()) == 0) movelist.add_move(ChessMove(idx, idx + 8, ptype));
+    if(((1ULL << (idx + 8)) & cb.get_occ()) == 0) movelist.add_move(ChessMove(idx, idx + 8, ptype));
 
     if(idx >= 8 && idx <= 15)
     {
@@ -347,5 +378,44 @@ void MoveGenerator::append_pseudolegal_pawnmoves(const ChessBoard &cb, unsigned 
 
 bool MoveGenerator::spec_enp_check(const ChessBoard &cb, unsigned long capt_from)
 {
-
+    //whatever atm
 }
+
+bool MoveGenerator::king_under_attack(const ChessBoard &cb)
+{
+    uint64_t attacks {0x0};
+    uint64_t king_pos{0x0};
+    auto occ = cb.get_occ();
+
+    for(int idx = 0 ; idx < 64 ; ++idx)
+    {
+        if(1ULL << idx & cb.get_king())
+        {
+            king_pos = 1ULL << idx;
+        }
+
+        else if( 1ULL << idx & cb.get_enemy_pawns())
+        {
+            attacks |= get_pawn_attacks_rev(idx);
+        }
+        else if( 1ULL << idx & cb.get_enemy_knights())
+        {
+           attacks |= get_knight_attacks(idx);
+        }
+        else if( (1ULL << idx) & cb.get_enemy_bishops())
+        {
+            attacks |= get_bishop_attacks(occ, idx);
+        }
+        else if( (1ULL << idx) & cb.get_enemy_rooks())
+        {
+            attacks |= get_rook_attacks(occ, idx);
+        }
+        else if( (1ULL << idx )& cb.get_enemy_queens())
+        {
+          attacks |= get_bishop_attacks(occ, idx) | get_rook_attacks(occ, idx);
+        }
+    }
+
+    return king_pos & attacks;
+}
+

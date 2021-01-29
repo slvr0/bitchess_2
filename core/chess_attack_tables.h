@@ -1,31 +1,36 @@
 #pragma once
 
-#include <iostream>
 #include <vector>
+#include <iostream>
 
 #include "utils/global_utils.cpp"
 
-class ChessAttackTables
+typedef std::pair<int,int> Direction;
+
+void                   init_tables();
+static void     _init_tables(const std::vector<Direction> &directions, bool rooks);
+static void     _init_king_tables();
+
+uint64_t get_rook_attacks(const uint64_t & occ, const unsigned long idx);
+uint64_t get_bishop_attacks(const uint64_t & occ, const unsigned long idx);
+uint64_t get_king_moves(unsigned long idx);
+uint64_t get_pawn_attacks_rev( const unsigned long idx);
+uint64_t get_pawn_attacks(const unsigned long idx);
+uint64_t get_knight_attacks(const unsigned long idx);
+
+static const uint64_t prec_king_moves[64] =
 {
-public:
-    ChessAttackTables();
-
-    void init_tables();
-
-    uint64_t get_rook_attacks(const uint64_t & occ, uint8_t idx);
-    uint64_t get_bishop_attacks(const uint64_t & occ, uint8_t idx);
-
-private:
-
-     typedef std::pair<int,int> Direction;
-     void init_attack_tables(const std::vector<Direction> & directions, bool rooks = true);
+    770,    1797,    3594,    7188 ,    14376,    28752,    57504,    49216,    197123,
+    460039,    920078,    1840156,    3680312,    7360624,    14721248,    12599488,
+    50463488,    117769984,    235539968,    471079936,    942159872,    1884319744,    3768639488,
+    3225468928,    12918652928,    30149115904,    60298231808,    120596463616,    241192927232,    482385854464,
+    964771708928,    825720045568,    3307175149568,    7718173671424,    15436347342848,    30872694685696,    61745389371392,
+    123490778742784,    246981557485568,    211384331665408,    846636838289408,    1975852459884544,    3951704919769088,
+    7903409839538176,    15806819679076352,    31613639358152704,    63227278716305408,    54114388906344448,    216739030602088448,
+    505818229730443264,    1011636459460886528,    2023272918921773056,    4046545837843546112,    8093091675687092224,
+    16186183351374184448,    13853283560024178688,    144959613005987840,    362258295026614272,    724516590053228544,
+    1449033180106457088,    2898066360212914176,    5796132720425828352,    11592265440851656704,    4665729213955833856
 };
-
-static uint64_t rook_attacks_[102400];
-static uint64_t bishop_attacks_ [5248];
-
-static int rook_offsets_[64];
-static int bishop_offsets_[64];
 
 static const uint64_t knight_attacks[64] =
 {
@@ -125,7 +130,7 @@ static const uint64_t bishop_magic_numbers [64] =
     0x0240080802809010ULL
 };
 
-static const uint8_t bishop_shifts [64] =
+static const int bishop_shifts [] =
 {
     6, 5, 5, 5, 5, 5, 5, 6,
     5, 5, 5, 5, 5, 5, 5, 5,
@@ -209,7 +214,7 @@ static const uint64_t rook_magic_numbers [64] =
     0x02D4048040290402ULL
 };
 
-static const uint8_t rook_shifts [64] =
+static const int rook_shifts [ ]=
 {
     12, 11, 11, 11, 11, 11, 11, 12,
     11, 10, 10, 10, 10, 10, 10, 11,
@@ -222,31 +227,19 @@ static const uint8_t rook_shifts [64] =
 };
 
 static const uint64_t pawn_attacks[64] = {
-    0x0000000000000200ULL, 0x0000000000000500ULL, 0x0000000000000A00ULL,
-    0x0000000000001400ULL, 0x0000000000002800ULL, 0x0000000000005000ULL,
-    0x000000000000A000ULL, 0x0000000000004000ULL, 0x0000000000020000ULL,
-    0x0000000000050000ULL, 0x00000000000A0000ULL, 0x0000000000140000ULL,
-    0x0000000000280000ULL, 0x0000000000500000ULL, 0x0000000000A00000ULL,
-    0x0000000000400000ULL, 0x0000000002000000ULL, 0x0000000005000000ULL,
-    0x000000000A000000ULL, 0x0000000014000000ULL, 0x0000000028000000ULL,
-    0x0000000050000000ULL, 0x00000000A0000000ULL, 0x0000000040000000ULL,
-    0x0000000200000000ULL, 0x0000000500000000ULL, 0x0000000A00000000ULL,
-    0x0000001400000000ULL, 0x0000002800000000ULL, 0x0000005000000000ULL,
-    0x000000A000000000ULL, 0x0000004000000000ULL, 0x0000020000000000ULL,
-    0x0000050000000000ULL, 0x00000A0000000000ULL, 0x0000140000000000ULL,
-    0x0000280000000000ULL, 0x0000500000000000ULL, 0x0000A00000000000ULL,
-    0x0000400000000000ULL, 0x0002000000000000ULL, 0x0005000000000000ULL,
-    0x000A000000000000ULL, 0x0014000000000000ULL, 0x0028000000000000ULL,
-    0x0050000000000000ULL, 0x00A0000000000000ULL, 0x0040000000000000ULL,
-    0x0000000000000000ULL, 0x0000000000000000ULL, 0x0000000000000000ULL,
-    0x0000000000000000ULL, 0x0000000000000000ULL, 0x0000000000000000ULL,
-    0x0000000000000000ULL, 0x0000000000000000ULL, 0x0000000000000000ULL,
-    0x0000000000000000ULL, 0x0000000000000000ULL, 0x0000000000000000ULL,
-    0x0000000000000000ULL, 0x0000000000000000ULL, 0x0000000000000000ULL,
-    0x0000000000000000ULL};
+    512, 1280, 2560, 5120, 10240, 20480, 40960,
+    16384, 131072, 327680, 655360, 1310720, 2621440, 5242880,
+    10485760, 4194304, 33554432, 83886080, 167772160, 335544320,
+    671088640, 1342177280, 2684354560, 1073741824, 8589934592, 21474836480,
+    42949672960, 85899345920, 171798691840, 343597383680, 687194767360, 274877906944,
+    2199023255552, 5497558138880, 10995116277760, 21990232555520, 43980465111040, 87960930222080,
+    175921860444160, 70368744177664, 562949953421312, 1407374883553280, 2814749767106560, 5629499534213120,
+    11258999068426240, 22517998136852480, 45035996273704960, 18014398509481984, 144115188075855872,
+    360287970189639680, 720575940379279360, 1441151880758558720, 2882303761517117440, 5764607523034234880, 11529215046068469760, 4611686018427387904,
+    0, 0, 0, 0, 0, 0, 0, 0};
 
 //so ugly, fix this later
-static const uint64_t pawn_attacks_rev[64] =
+static const uint64_t pawn_attacks_rev[] =
 {0, 0, 0, 0, 0, 0, 0, 0,
 2, 5, 10, 20, 40, 80, 160, 64, 512,
 1280, 2560, 5120, 10240, 20480, 40960, 16384, 131072, 327680, 655360, 1310720,
@@ -258,30 +251,6 @@ static const uint64_t pawn_attacks_rev[64] =
 5629499534213120, 11258999068426240, 22517998136852480, 45035996273704960, 18014398509481984
 };
 
-inline uint64_t get_rook_attacks(const uint64_t & occ, const unsigned long idx)
-{
-    uint64_t blocker_uint64 = occ & rook_mask[idx];
-    blocker_uint64 *= rook_magic_numbers[idx];
-    blocker_uint64 >>= 64 - rook_shifts[idx];
 
-    int offset = rook_offsets_[idx];
-
-    int index = offset + blocker_uint64;
-
-    return rook_attacks_[index];
-}
-
-inline uint64_t get_bishop_attacks(const uint64_t & occ, const unsigned long idx)
-{
-    uint64_t blocker_uint64 = occ & bishop_mask[idx];
-    blocker_uint64 *= bishop_magic_numbers[idx];
-    blocker_uint64 >>= 64 - bishop_shifts[idx];
-
-    int offset = bishop_offsets_[idx];
-
-    int index = offset + blocker_uint64;
-
-    return bishop_attacks_[index];
-}
 
 

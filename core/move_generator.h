@@ -6,9 +6,9 @@
 #include "core/chess_board.h"
 #include "core/chess_move.h"
 
+
 struct PushPinInfo
 {
-
 public:
 
     PushPinInfo() {}
@@ -25,14 +25,14 @@ public:
     MoveGenerator();
 
     ChessMoveList get_legal_moves(const ChessBoard & cb);
+    bool king_under_attack(const ChessBoard& cb); //just to eval, is it checkmate or stalemate, called rarely
 
 private:
     typedef std::pair<int,int> Direction;
-    std::vector<Direction> all_dirs {Direction(1,0), Direction(-1,0), Direction(0,1), Direction(0,-1),Direction(0,-1) ,Direction(1, 1), Direction(1,-1), Direction(-1,0), Direction(-1,-1)};
+    std::vector<Direction> all_dirs {Direction(1,0), Direction(-1,0), Direction(0,1), Direction(0,-1),Direction(0,-1) ,Direction(1, 1), Direction(1,-1), Direction(-1,0), Direction(-1,-1)};    
 
-    inline bool on_board(const unsigned long & row, const unsigned long & col){return   row >= 0 && row < 8 && col >= 0 && col < 8;}
+    uint64_t get_kingmoves(unsigned long idx);
 
-    uint64_t get_king_moves(unsigned long idx); //from an empty board
     PushPinInfo get_push_pin_info(const unsigned long& king, const uint64_t& our_pieces, const uint64_t& enemy_pieces,
                                   const  uint64_t& enemy_bishops,const uint64_t& enemy_rooks, const uint64_t&  enemy_queens);
 

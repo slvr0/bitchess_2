@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/chess_move.h"
+
 class Castling
 {
 public:
@@ -19,11 +21,16 @@ public:
     bool getEnemy_000() const;
     void setEnemy_000(bool value);
 
+    void update_castlestatus(const ChessMove & move, const int &white_toact);
+
+
 private :
     bool we_00;
     bool we_000;
     bool enemy_00;
     bool enemy_000;
+
+
 
 };
 

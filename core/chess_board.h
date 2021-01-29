@@ -4,11 +4,11 @@
 #include <vector>
 
 #include "core/chess_castle.h"
+#include "core/chess_move.h"
 
 class ChessBoard
 {
 public:
-
     ChessBoard();
     ChessBoard(std::string fen_string);
 
@@ -33,26 +33,41 @@ public:
 
     inline uint get_rule50() const { return rule50_;}
     inline uint get_total_moves() const {return total_moves_;}
+    inline int is_white_toact() const { return white_toact_;}
+
     inline int get_threefold() const {return three_repeat_;}
     inline int get_whitetoact() const {return white_toact_;}
     inline int get_enpassant() const {return enpassant_;}
 
     void print_to_console(const int & print_mode= 0, char spec_type= ' ') const;
-    void print_bitboard(const uint64_t & bitboard);
+    void print_bitboard(const uint64_t & bitboard) const;
     void reset();
+    void mirror();
+
+    void add_piece(const uint8_t & square, char ptype);
+    void remove_piece(const uint8_t & square);
 
     std::pair<char, uint64_t> occupied_by(const short & s_idx) const ;
+    std::pair<int, uint64_t> occupied_by_res_int(const short & s_idx) const ;
 
     Castling castling_;
 
-private :
-    std::string fen_string_;
+    bool has_mating_chance() const;
 
-    uint rule50_;
-    uint total_moves_;
-    int three_repeat_;
-    int white_toact_;
-    int enpassant_;
+    void update_from_move(const ChessMove& move);
+
+    void set_zobrist();
+    void update_zobrist(const ChessMove& move);
+    inline uint64_t get_zobrist() const { return z_hash_;}
+
+private :
+    std::string fen_string_ = "";
+
+    uint rule50_ = 0;
+    uint total_moves_ = 0;
+    int three_repeat_ = 0;
+    int white_toact_ = 1;
+    int enpassant_ = -1;
 
     uint64_t pawns_{0x0};
     uint64_t bishops_{0x0};
@@ -72,4 +87,8 @@ private :
     uint64_t enemy_pieces_{0x0};
 
     std::vector<char> _fill_printer(const int & print_mode, char spec_type) const;
+
+    uint64_t z_hash_{0x0};
 };
+
+

@@ -62,3 +62,31 @@ void Castling::setEnemy_000(bool value)
 {
     enemy_000 = value;
 }
+
+void Castling::update_castlestatus(const ChessMove & move, const int & white_toact)
+{
+    char pt = move.ptype();
+
+    if (pt == 'K' )
+    {
+      setWe_00(false);
+      setWe_000(false);
+      return;
+    }
+    if (pt == 'R' )
+    {
+      if (move.from() == 0)
+      {
+        if (white_toact == 1) setWe_000(false);
+        else setWe_00(false);
+      }
+      else if(move.from() == 7)
+      {
+        if (white_toact == 1) setWe_00(false);
+        else setWe_000(false);
+      }
+    }
+
+    if  (move.to() == 63)  setEnemy_00(false);
+    if  (move.to() == 56)  setEnemy_000(false);
+}

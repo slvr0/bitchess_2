@@ -8,8 +8,12 @@
 #include <cstdlib>
 #include <sstream>
 #include <string>
+#include <stdio.h>
+#include <ctype.h>
 
 #include "utils/global_utils.cpp"
+#include "core/zobr_hash.h"
+
 
 ChessBoard::ChessBoard() :
     rule50_(0),
@@ -47,8 +51,86 @@ void ChessBoard::reset()
     enemy_queens_ = 0x0;
     enemy_king_ = 0x0;
 
-    our_pieces_  = 0x0;;
-    enemy_pieces_  = 0x0;;
+    our_pieces_  = 0x0;
+    enemy_pieces_  = 0x0;
+}
+
+//swap sides // flip vertical and horizontal
+void ChessBoard::mirror()
+{
+
+    //pawns being swapped wtf?
+
+
+    pawns_ = reverse_bytes_in_byte(reverse_bits_in_byte(pawns_));
+    bishops_ =  reverse_bytes_in_byte(reverse_bits_in_byte(bishops_));
+    knights_ = reverse_bytes_in_byte( reverse_bits_in_byte(knights_));
+    rooks_ =  reverse_bytes_in_byte(reverse_bits_in_byte(rooks_));
+    queens_ =  reverse_bytes_in_byte(reverse_bits_in_byte(queens_));
+    king_ =  reverse_bytes_in_byte(reverse_bits_in_byte(king_));
+
+    enemy_pawns_ =  reverse_bytes_in_byte(reverse_bits_in_byte(enemy_pawns_));
+    enemy_bishops_ =  reverse_bytes_in_byte(reverse_bits_in_byte(enemy_bishops_));
+    enemy_knights_ =  reverse_bytes_in_byte(reverse_bits_in_byte(enemy_knights_));
+    enemy_rooks_ =  reverse_bytes_in_byte(reverse_bits_in_byte(enemy_rooks_));
+    enemy_queens_ = reverse_bytes_in_byte(reverse_bits_in_byte(enemy_queens_));
+    enemy_king_ =  reverse_bytes_in_byte(reverse_bits_in_byte(enemy_king_));
+
+    enemy_pieces_  = reverse_bytes_in_byte(reverse_bits_in_byte(enemy_pieces_));
+    our_pieces_ = reverse_bytes_in_byte( reverse_bits_in_byte(our_pieces_));
+
+    std::swap(pawns_, enemy_pawns_);
+    std::swap(knights_, enemy_knights_);
+    std::swap(bishops_, enemy_bishops_);
+    std::swap(rooks_, enemy_rooks_);
+    std::swap(queens_, enemy_queens_);
+
+    std::swap(king_, enemy_king_);
+    std::swap(our_pieces_, enemy_pieces_);
+
+    white_toact_ = white_toact_ ? 0 : 1;
+
+    castling_.mirror();
+}
+
+void ChessBoard::add_piece(const uint8_t &square, char ptype)
+{
+    if (ptype == 'P')pawns_ |= 1ULL << square;
+    else if( ptype == 'N')knights_ |= 1ULL << square;
+    else if( ptype == 'B') bishops_ |= 1ULL << square;
+    else if( ptype == 'R') rooks_ |= 1ULL << square;
+    else if( ptype == 'Q') queens_ |= 1ULL << square;
+    else if( ptype == 'K') king_ |= 1ULL << square;
+    else if( ptype == 'p') enemy_pawns_ |= 1ULL << square;
+    else if( ptype == 'n') enemy_knights_ |= 1ULL << square;
+    else if( ptype == 'b') enemy_bishops_ |= 1ULL << square;
+    else if( ptype == 'r')enemy_rooks_ |= 1ULL << square;
+    else if( ptype == 'q') enemy_queens_ |= 1ULL << square;
+    else if( ptype == 'k') enemy_king_ |= 1ULL << square;
+
+    if(isupper(ptype)) our_pieces_ |= 1ULL << square;
+    else enemy_pieces_ |= 1ULL << square;
+}
+
+void ChessBoard::remove_piece(const uint8_t &square)
+{
+    uint64_t sq_64 = 1ULL << square;
+
+    pawns_ &= ~sq_64;
+    bishops_ &= ~sq_64;
+    knights_ &=~ sq_64;
+    rooks_ &= ~sq_64;
+    queens_ &= ~sq_64;
+    king_ &= ~sq_64;
+    enemy_pawns_ &= ~sq_64;
+    enemy_bishops_ &=~sq_64;
+    enemy_knights_ &= ~sq_64;
+    enemy_rooks_ &= ~sq_64;
+    enemy_queens_ &= ~sq_64;
+    enemy_king_ &= ~sq_64;
+
+    our_pieces_ &= ~sq_64;
+    enemy_pieces_ &= ~sq_64;
 }
 
 std::pair<char, uint64_t> ChessBoard::occupied_by(const short &s_idx) const
@@ -71,6 +153,201 @@ std::pair<char, uint64_t> ChessBoard::occupied_by(const short &s_idx) const
     else if (enemy_king_ & s_idx_64) return std::pair<char, uint64_t> ('k', enemy_king_);
 
     else return std::pair<char, uint64_t> (',', 0);
+}
+
+std::pair<int, uint64_t> ChessBoard::occupied_by_res_int(const short &s_idx) const
+{
+    const uint64_t s_idx_64 = 1ULL << s_idx;
+
+    if (pawns_ & s_idx_64) return std::pair<int, uint64_t> (0, pawns_);
+    else if (enemy_pawns_ & s_idx_64) return std::pair<int, uint64_t> (6, enemy_pawns_);
+
+    else if (knights_ & s_idx_64) return std::pair<int, uint64_t> (1, knights_);
+    else if (bishops_ & s_idx_64) return std::pair<int, uint64_t> (2, bishops_);
+    else if (rooks_ & s_idx_64) return std::pair<int, uint64_t> (3, rooks_);
+    else if (queens_ & s_idx_64) return std::pair<int, uint64_t> (4, queens_);
+    else if (king_ & s_idx_64 ) return std::pair<int, uint64_t> (5, king_);
+
+    else if (enemy_knights_ & s_idx_64) return std::pair<int, uint64_t> (7, enemy_knights_);
+    else if (enemy_bishops_ & s_idx_64) return std::pair<int, uint64_t> (8, enemy_bishops_);
+    else if (enemy_rooks_ & s_idx_64) return std::pair<int, uint64_t> (9, enemy_rooks_);
+    else if (enemy_queens_ & s_idx_64) return std::pair<int, uint64_t> (10, enemy_queens_);
+    else if (enemy_king_ & s_idx_64) return std::pair<int, uint64_t> (11, enemy_king_);
+
+    else return std::pair<int, uint64_t> (-1, 0x0);
+}
+
+bool ChessBoard::has_mating_chance() const
+{
+    if(rooks_ || pawns_ || queens_) return true;
+
+    if(pop_count(our_pieces_ | enemy_pieces_) < 4 ) return false;
+
+    if(knights_ | enemy_knights_) return true;
+
+    uint64_t lq_bishop =  0x55AA55AA55AA55AAULL;
+    uint64_t dq_bishop = 0xAA55AA55AA55AA55ULL;
+
+    uint64_t lq_at = (bishops_ | enemy_bishops_) & lq_bishop;
+    uint64_t dq_at = (bishops_ | enemy_bishops_) & dq_bishop;
+
+    return lq_at || dq_at;
+}
+
+void ChessBoard::update_from_move(const ChessMove &move)
+{
+    int from = move.from();
+    int to = move.to();
+    char ptype = move.ptype();
+
+    std::string spec_action = move.spec_action();
+    char promotion = move.promotion();
+
+    if (spec_action == "enp")
+    {
+        add_piece(to, ptype);
+        remove_piece(from);
+        remove_piece(to - 8);
+        rule50_ = 0;
+    }
+    else if( spec_action == "O-O")
+    {
+        if (white_toact_)
+        {
+            int king_on = 4;
+            int rook_on = 7;
+            remove_piece(king_on);
+            remove_piece(rook_on);
+            add_piece(6, 'K');
+            add_piece(5, 'R');
+        }
+        else
+        {
+            int king_on = 3;
+            int rook_on = 0;
+            remove_piece(king_on);
+            remove_piece(rook_on);
+            add_piece(1, 'K');
+            add_piece(2, 'R');
+        }
+    }
+    else if (spec_action == "O-O-O")
+    {
+        if(white_toact_)
+        {
+            int king_on = 4;
+            int rook_on = 0;
+            remove_piece(king_on);
+            remove_piece(rook_on);
+            add_piece(2, 'K');
+            add_piece(3, 'R');
+        }
+        else
+        {
+            int king_on = 3;
+            int rook_on = 7;
+            remove_piece(king_on);
+            remove_piece(rook_on);
+            add_piece(5, 'K');
+            add_piece(4, 'R');
+        }
+    }
+    else if (promotion != ' ')
+    {
+        remove_piece(to);
+        remove_piece(from);
+        add_piece(to, promotion);
+    }
+    else
+    {
+        remove_piece(to);
+        remove_piece(from);
+        add_piece(to, ptype);
+    }
+
+   total_moves_ += 1;
+   rule50_ = ptype != 'P'  ? rule50_ + 1 : 0;
+   enpassant_ = -1;
+
+    if (ptype == 'P' && from >= 8 && from < 16)
+    {
+      int dm = to - from;
+      if( dm == 16) enpassant_ = to - 8;
+    }
+
+    castling_.update_castlestatus(move, white_toact_);
+}
+
+void ChessBoard::set_zobrist()
+{
+    uint64_t zv {0x0};
+
+    for(int i = 0; i < 64 ; ++i)
+    {
+       std::pair<char, uint64_t> occ_pair =  occupied_by(i);
+
+       if(occ_pair.first == -1) continue;
+
+       if(white_toact_)
+       {
+           zv ^= get_hash(i, occ_pair.first);
+       }
+       else
+       {
+           zv ^= get_hash(63-i,occ_pair.first);
+       }
+    }
+
+     z_hash_ = zv;
+}
+
+void ChessBoard::update_zobrist(const ChessMove &move)
+{
+    int from = move.from();
+    int to = move.to();
+    char ptype = move.ptype();
+    std::string spec_action = move.spec_action();
+    char promo = move.promotion();
+
+    if (promo == ' ' and spec_action == "")
+    {
+        z_hash_ ^= get_hash(from,ptypelist.at(ptype));
+        z_hash_ ^= get_hash(to,ptypelist.at(ptype));
+        return ;
+    }
+
+    else if( promo != ' ')
+    {
+        z_hash_ ^= get_hash(from,ptypelist.at(ptype));
+        z_hash_ ^= get_hash(to,ptypelist.at(promo));
+        return ;
+    }
+
+    else if (spec_action == "O-O")
+    {
+        z_hash_ ^= get_hash(7,ptypelist['R']);
+        z_hash_ ^= get_hash(4,ptypelist['K']);
+
+        z_hash_ ^= get_hash(5,ptypelist['R']);
+        z_hash_ ^= get_hash(6,ptypelist['K']);
+        return;
+    }
+    else if(spec_action == "O-O-O")
+    {
+        z_hash_ ^= get_hash(0,ptypelist['R']);
+        z_hash_ ^= get_hash(4,ptypelist['K']);
+
+        z_hash_ ^= get_hash(3,ptypelist['R']);
+        z_hash_ ^= get_hash(2,ptypelist['K']);
+        return;
+    }
+    else if(spec_action == "enp")
+    {
+        z_hash_ ^= get_hash(from,ptypelist.at(ptype));
+        z_hash_ ^= get_hash(to,ptypelist.at(ptype));
+        z_hash_ ^= get_hash(to-8,ptypelist.at(ptype));
+        return;
+    }
 }
 
 void ChessBoard::set_from_fen(std::string fen_string)
@@ -125,7 +402,7 @@ void ChessBoard::set_from_fen(std::string fen_string)
         else if (c == 'B') bishops_ |=1ULL << idx;
         else if (c == 'R') rooks_ |= 1ULL << idx;
         else if (c == 'Q') queens_ |= 1ULL << idx;
-        else if (c == 'K')   king_|= 1ULL << idx;
+        else if (c == 'K')  king_|= 1ULL << idx;
         else if (c == 'p') enemy_pawns_ |=1ULL << idx;
         else if (c == 'n') enemy_knights_ |=1ULL << idx;
         else if (c == 'b') enemy_bishops_ |=1ULL << idx;
@@ -133,7 +410,7 @@ void ChessBoard::set_from_fen(std::string fen_string)
         else if (c == 'q') enemy_queens_ |=1ULL << idx;
         else if (c == 'k') enemy_king_ |= 1ULL << idx;
 
-          ++col;
+        ++col;
         }        
 
         rule50_ = rule50;
@@ -202,11 +479,11 @@ void ChessBoard::print_to_console(const int& print_mode, char spec_type ) const
     print("\n");
 }
 
-void ChessBoard::print_bitboard(const uint64_t &bitboard)
+void ChessBoard::print_bitboard(const uint64_t &bitboard) const
 {
     ChessBoard cb;
     cb.pawns_ = bitboard;
 
-    cb.print_to_console('P');
+    cb.print_to_console(3,'P');
 }
 
