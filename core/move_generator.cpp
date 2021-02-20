@@ -15,7 +15,7 @@ MoveGenerator::MoveGenerator()
      return get_king_moves(idx);
  }
 
-ChessMoveList MoveGenerator::get_legal_moves(const ChessBoard &cb)
+std::pair<ChessMoveList, int> MoveGenerator::get_legal_moves(const ChessBoard &cb)
 {
     ChessMoveList movelist;
     PushPinInfo pp_info;
@@ -138,7 +138,7 @@ ChessMoveList MoveGenerator::get_legal_moves(const ChessBoard &cb)
        our_king_moves ^= 1ULL << lb;
    }
 
-   if(pp_info.n_attackers > 1) return legal_movelist;
+   if(pp_info.n_attackers > 1) return std::pair<ChessMoveList, int> ( legal_movelist, pp_info.n_attackers );
 
    //now check which moves are legal or not based on the Pin Push Capture information collected
 
@@ -212,7 +212,7 @@ ChessMoveList MoveGenerator::get_legal_moves(const ChessBoard &cb)
         }
      }
     }
- return legal_movelist;
+ return std::pair<ChessMoveList, int> ( legal_movelist, pp_info.n_attackers );
 }
 
 PushPinInfo MoveGenerator::get_push_pin_info(const unsigned long &king, const uint64_t &our_pieces, const uint64_t &enemy_pieces, const uint64_t &enemy_bishops, const uint64_t &enemy_rooks, const uint64_t &enemy_queens)
@@ -257,18 +257,25 @@ PushPinInfo MoveGenerator::get_push_pin_info(const unsigned long &king, const ui
             }
 
             int idx = row*8 + col;
+
             uint64_t idx_64 = 1ULL << idx;
 
             bool found_true = false;
 
             if(idx_64 & enemy_pieces)
             {
-                if (is_bishop_queen && intersect_bishop_queen(idx_64))  found_true = true;
-                else if(!is_bishop_queen && intersect_rook_queen(idx_64)) found_true = true;
+                if (is_bishop_queen && intersect_bishop_queen(idx_64))
+                {
+                    found_true = true;
+                }
+                else if(!is_bishop_queen && intersect_rook_queen(idx_64))
+                {
+                    found_true = true;
+                }
                 else found_true = false;
 
                 if(!found_true)
-                {
+                {                    
                     push_mask_dir = 0x0;
                     break;
                 }
@@ -300,7 +307,12 @@ PushPinInfo MoveGenerator::get_push_pin_info(const unsigned long &king, const ui
              }
         }
     }
-     return pp_info;
+    pp_info.capture_mask = capture_mask;
+    pp_info.n_attackers = n_attackers;
+    pp_info.pins = pins;
+    pp_info.push_mask_full = push_mask_full;
+
+    return pp_info;
 }
 
 void MoveGenerator::append_pseudolegal_slidermoves(const ChessBoard &cb,  unsigned long idx, ChessMoveList &movelist, char ptype)
@@ -393,7 +405,6 @@ bool MoveGenerator::king_under_attack(const ChessBoard &cb)
         {
             king_pos = 1ULL << idx;
         }
-
         else if( 1ULL << idx & cb.get_enemy_pawns())
         {
             attacks |= get_pawn_attacks_rev(idx);

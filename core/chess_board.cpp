@@ -58,10 +58,6 @@ void ChessBoard::reset()
 //swap sides // flip vertical and horizontal
 void ChessBoard::mirror()
 {
-
-    //pawns being swapped wtf?
-
-
     pawns_ = reverse_bytes_in_byte(reverse_bits_in_byte(pawns_));
     bishops_ =  reverse_bytes_in_byte(reverse_bits_in_byte(bishops_));
     knights_ = reverse_bytes_in_byte( reverse_bits_in_byte(knights_));
@@ -89,6 +85,11 @@ void ChessBoard::mirror()
     std::swap(our_pieces_, enemy_pieces_);
 
     white_toact_ = white_toact_ ? 0 : 1;
+
+    if(enpassant_ != -1)
+    {
+        enpassant_ = 63 - enpassant_;
+    }
 
     castling_.mirror();
 }
@@ -179,7 +180,7 @@ std::pair<int, uint64_t> ChessBoard::occupied_by_res_int(const short &s_idx) con
 
 bool ChessBoard::has_mating_chance() const
 {
-    if(rooks_ || pawns_ || queens_) return true;
+    if((rooks_|enemy_rooks_) || (pawns_|enemy_pawns_) || (queens_|enemy_queens_)) return true;
 
     if(pop_count(our_pieces_ | enemy_pieces_) < 4 ) return false;
 
@@ -423,6 +424,16 @@ void ChessBoard::set_from_fen(std::string fen_string)
         castling_.setWe_000(castlings.find('Q') != std::string::npos);
         castling_.setEnemy_00(castlings.find('k') != std::string::npos);
         castling_.setEnemy_000(castlings.find('q') != std::string::npos);
+
+        white_toact_ = who_to_move == "w" ? 1 : 0;
+
+        if(white_toact_ != 1)
+        {
+            print("Flip starting position on board from fen status");
+            //flip
+            white_toact_ = 1; //then flip it to black
+            this->mirror();
+        }
 }
 
 std::vector<char> ChessBoard::_fill_printer(const int &print_mode, char spec_type) const

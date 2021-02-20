@@ -23,19 +23,17 @@ public:
 
     inline ChessBoard get_board() const {return cb_;}
 
-//    void propagate_score_update(const double & score, int status);
-    void propagate_score_update();
     void propagate_score_update(const float & score);
 
     inline void add_child(const ChessBoard cb) {childs_.emplace_back(std::make_unique<Node>(cb, this));}
     inline void add_child(const ChessBoard cb, ChessMove move) {childs_.emplace_back(std::make_unique<Node>(cb, move, this));}
 
 //    inline void add_child(std::unique_ptr<Node> child) {childs_.emplace_back(std::move(child));}
-    inline Node* get_child(const int & c_idx) { return childs_.at(c_idx).get();}
-    inline Node* get_parent() {return parent_;}
+    inline Node* get_child(const int & c_idx) const { return childs_.at(c_idx).get();}
+    inline Node* get_parent() const {return parent_;}
 
     double ucb1_score(); //used for deciding path in tree search
-    double total_score(); //used in final result to eval node strength
+    double total_score() const; //used in final result to eval node strength
 
     inline int get_visits() const { return visits_; }
     inline int get_depth() const { return depth_; }
@@ -52,8 +50,11 @@ public:
     void debug_print_child_totalscore();
     inline int get_id() const { return id_;}
 
+    void nn_thread_log(DataEncoder& encoder_, std::ofstream & file);
+    void nn_log_norecursive(DataEncoder& encoder_, std::ofstream & file);
+
     //after tree is constructed , calls this on root to recursive select output and write it to file
-    void nn_log(const int &n_top, const int &n_bottom, DataEncoder& encoder_, std::ofstream &node_data);
+    void nn_log(const int &n_top, const int &n_bottom, DataEncoder& encoder_, std::vector<std::ofstream *> vector_files, int entries_per_file, int &entry);
 
     ChessBoard cb_;
 
@@ -62,6 +63,15 @@ public:
 
     inline void set_status(const int & status) { status_ = status;}
     int get_status() const { return status_; }
+
+    inline std::vector<Node*> get_childs() const {
+        std::vector<Node*> childs;
+
+        for(const auto & child : childs_) childs.emplace_back(child.get());
+
+        return childs;
+    }
+
 
     inline ChessMove get_move() const { return move_; }
 private:
@@ -76,6 +86,9 @@ private:
     std::vector<std::unique_ptr<Node>> childs_;
 
     ChessMove move_; // what move let to this position
+
+    bool logged_ = false;
+
 };
 }
 

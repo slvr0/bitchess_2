@@ -20,7 +20,7 @@ public:
     MCTS_ThreadWorker();
     MCTS_ThreadWorker(MCTS_ThreadWorker &&) = default;
 
-    static void run_thread(const int & thread_id, const int &tree_entries, const std::string start_pos = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    static void run_thread(const int & thread_id, const int &tree_entries, const int & tree_rollouts, const std::string start_pos);
 
 
 };

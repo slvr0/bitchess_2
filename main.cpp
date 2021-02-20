@@ -20,21 +20,42 @@
 #include "core/chess_attack_tables.h"
 #include "autoplay/auto_mcts_search_thread.h"
 
+#include "tests/move_gen_test.h"
+
 int main()
 {
     init_tables();
     init_prehash();
 
-    auto fen0 = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+//    move_gen_test_ply(6);
+    //test
+
+//    auto fen0 = "rnbqk1nr/ppp2ppp/4p3/3p4/1b1PP3/2N5/PPP2PPP/R1BQKBNR w KQkq - 2 4";
+
+//    ChessBoard root_cb(fen0);
+//    std::unique_ptr<MoveGenerator>  move_gen  = std::make_unique<MoveGenerator> ();
 
 
-    int max_entries = 10000;
-    int n_threads = 5;
+//    auto state_move = move_gen->get_legal_moves(root_cb);
+
+//    auto moves =  state_move.first;
+
+//    moves.print_moves();
+
+    //make simulation env on thread
+
+//    auto fen0 = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1";
+
+    int max_entries = 10000000;
+    int n_rollouts = 30000000;
+
+    int n_threads = 1;
 
     std::vector<std::thread> vth;
 
     std::string interesting_start_positions[10] =
     {
+        "1kq5/2q5/8/8/8/8/4QQ2/5K2 b - - 0 1", //english std, from black queen hangs
         "rnbqk2r/pp1p1pbp/2p2np1/4p3/2P5/2N1P1P1/PP1P1PBP/R1BQK1NR w KQkq - 0 6", //english std
         "rr1q3k/2bnn2p/3pp3/5pp1/2PPP3/2BNP1P1/1P1QRPBP/1R4K1 w q - 0 1",
         "8/8/3R4/5PP1/4NN2/5K2/8/r4k2 w - - 0 1",
@@ -49,11 +70,13 @@ int main()
 
     for(int i = 0 ; i < n_threads; ++i)
     {
-        vth.emplace_back(std::thread(std::thread(MCTS_ThreadWorker::run_thread, i, max_entries, interesting_start_positions[i])));
+        vth.emplace_back(std::thread(MCTS_ThreadWorker::run_thread, i, max_entries, n_rollouts, "rnbqk1nr/ppp2ppp/4p3/3p4/1b1PP3/2N5/PPP2PPP/R1BQKBNR w KQkq - 2 4"));
     }
 
     for(auto & thread : vth) thread.join();
     vth.clear();
+
+    //make tree
 
 //    for(auto & thread : vth) thread.join();
 

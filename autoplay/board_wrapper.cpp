@@ -14,11 +14,19 @@ ChessMoveList BoardWrapper::get_actions()
 {
     if(move_gen_)
     {
-        movelist_ = move_gen_->get_legal_moves(cb_);
+        auto state_branch_info = move_gen_->get_legal_moves(cb_);
         has_queued_ = true;
-    }
 
-    return movelist_;
+        movelist_ = state_branch_info.first;
+        king_under_attack_ = state_branch_info.second == 0 ? false : true;
+
+        return state_branch_info.first;
+
+    }
+    else
+    {
+        return ChessMoveList();
+    }
 }
 
 //status 0 = ongoing , 1 = white win, 2 = black win, 3 = draw
@@ -40,33 +48,34 @@ BoardInfo BoardWrapper::get_info() const
     float reward = 0.f;
     //todo, add threfold rep
 
+    float draw_score = 0.5f;
     if(movelist_.empty())
     {
         done = true;
 
-        if(move_gen_->king_under_attack(cb_))
+        if(king_under_attack_)
         {
             if(white_toact)
-            {
-                reward =  -1.f;
+            {        
+                reward =  -2.f;
                 status = 2;
             }
             else
-            {
-                reward =  1.f;
+            {        
+                reward =  2.f;
                 status = 1;
             }
         }
         else // stalemate my friend
         {
-            reward = .5f;
-            status = 4;
+            reward = draw_score;
+            status = 3;
 
         }
     }
-    else if(rule_50 >= 50 || total_moves > 150 || !cb_.has_mating_chance())
+    else if(rule_50 >= 50 ||  total_moves > 200 || !cb_.has_mating_chance())
     {
-        reward = .5f;
+        reward = draw_score;
         status = 3;
         done = true;
     }
@@ -139,6 +148,7 @@ void BoardWrapper::reset(const ChessBoard &cb)
     has_queued_ = false;
 
     starting_color_white_ = cb.get_whitetoact();
+    king_under_attack_ = false;
 }
 
 void BoardWrapper::show_state() const

@@ -11,7 +11,6 @@ Castling::Castling() :
 
 void Castling::mirror()
 {
-
     auto tmp_00 = getWe_00();
     auto tmp_000 = getWe_000();
 
@@ -20,7 +19,6 @@ void Castling::mirror()
 
     setEnemy_00(tmp_00);
     setEnemy_000(tmp_000);
-
 }
 
 bool Castling::getWe_00() const

@@ -29,8 +29,5 @@ private :
     bool we_000;
     bool enemy_00;
     bool enemy_000;
-
-
-
 };
 

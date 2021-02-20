@@ -29,14 +29,14 @@ class DataEncoder
 public:
     DataEncoder();
 
-    BoardTensor board_as_tensor(const ChessBoard & cb);
-    int move_as_nn_input(const ChessMove & move);
+    BoardTensor board_as_tensor(const ChessBoard & cb) const;
+    int move_as_nn_input(const ChessMove & move) const;
 
-   MctsNodeData node_as_nn_input(mcts::Node* node);
+   MctsNodeData node_as_nn_input(const mcts::Node& node) const;
 
     std::vector<int> movelist_as_nn_mask(const ChessMoveList & movelist);
 
-    inline void  fill_tensor (BoardTensor& bt, int type, const uint64_t& x)
+    inline void  fill_tensor (BoardTensor& bt, int type, const uint64_t& x) const
     {
         bt.set(type, x) ;
     }

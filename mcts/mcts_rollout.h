@@ -9,7 +9,6 @@
 
 //this can provoke a random playout from any mcts node position
 
-
 namespace mcts
 {
 class Node;
@@ -23,6 +22,11 @@ public:
     void perform_rollout(Node* node);
 
     void expand_node(Node* node);
+
+    std::vector<Node*> expand_and_rollout_node(Node* node, int rollout_at_depth, int n_rollouts, int &total_rollouts);
+
+    static void thread_rollout(MoveGenerator *move_gen, std::vector<Node*> nodelist, const int &thread_id, const int & N, const int & threads, const int &n_rollouts);
+
 
 private:
     std::unique_ptr<BoardWrapper> env_;

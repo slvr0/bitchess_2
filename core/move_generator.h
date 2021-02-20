@@ -7,6 +7,7 @@
 #include "core/chess_move.h"
 
 
+
 struct PushPinInfo
 {
 public:
@@ -24,12 +25,13 @@ class MoveGenerator
 public:
     MoveGenerator();
 
-    ChessMoveList get_legal_moves(const ChessBoard & cb);
+    //moves, n attackers
+    std::pair<ChessMoveList, int>  get_legal_moves(const ChessBoard & cb);
     bool king_under_attack(const ChessBoard& cb); //just to eval, is it checkmate or stalemate, called rarely
 
 private:
     typedef std::pair<int,int> Direction;
-    std::vector<Direction> all_dirs {Direction(1,0), Direction(-1,0), Direction(0,1), Direction(0,-1),Direction(0,-1) ,Direction(1, 1), Direction(1,-1), Direction(-1,0), Direction(-1,-1)};    
+    std::vector<Direction> all_dirs {Direction(1,0), Direction(-1,0), Direction(0,1), Direction(0,-1),Direction(0,-1) ,Direction(1, 1), Direction(1,-1), Direction(-1,1), Direction(-1,-1)};
 
     uint64_t get_kingmoves(unsigned long idx);
 

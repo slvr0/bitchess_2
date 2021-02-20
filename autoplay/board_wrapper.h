@@ -41,6 +41,6 @@ private :
     MoveGenerator* move_gen_;
     std::vector<uint64_t> zobrist_keys_; // we somehow gotta imititate the amazing collection Counter in python.
     bool has_queued_ = false; // if moves have been queued
-
+    bool king_under_attack_ = false;
     int starting_color_white_ = 1; // used to see if position initiated from white. Decides reward sign output on draws
 };

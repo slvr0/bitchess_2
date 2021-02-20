@@ -62,6 +62,8 @@ public:
     inline void reset() {moves.clear();}
     inline bool empty() const { return moves.empty();}
 
+
+
 private :
     std::vector<ChessMove> moves;
 };

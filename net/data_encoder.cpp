@@ -14,7 +14,7 @@ DataEncoder::DataEncoder()
     output_dims_ = sizeof(nn_action_space_str)/sizeof(nn_action_space_str[0]);
 }
 
-BoardTensor DataEncoder::board_as_tensor(const ChessBoard &cb)
+BoardTensor DataEncoder::board_as_tensor(const ChessBoard &cb) const
 {
    BoardTensor bt;
 
@@ -44,12 +44,12 @@ BoardTensor DataEncoder::board_as_tensor(const ChessBoard &cb)
     if(enemy000)  castle_64 |= 1ULL << 4;
     if(cb.get_whitetoact())  castle_64 |= 1ULL << 5;
 
-    bt.set(12, castle_64);
+    fill_tensor(bt, 12, castle_64);
 
     return bt;
 }
 
-int DataEncoder::move_as_nn_input(const ChessMove &move)
+int DataEncoder::move_as_nn_input(const ChessMove &move) const
 {
     int from = move.from();
     int to = move.to();
@@ -89,26 +89,26 @@ int DataEncoder::move_as_nn_input(const ChessMove &move)
     }
 }
 
-MctsNodeData DataEncoder::node_as_nn_input(mcts::Node *node)
+MctsNodeData DataEncoder::node_as_nn_input(const mcts::Node& node) const
 {
-    const ChessBoard cb = node->get_board();
+    const ChessBoard cb = node.get_board();
     BoardTensor bt = board_as_tensor(cb);
 
     //get all branch values
 
     MctsNodeData node_data;
 
-    for(int i=0; i<node->get_n_childs();++i)
+    for(int i=0; i<node.get_n_childs();++i)
     {
-        auto move = node->get_child(i)->get_move();
-        auto branch_score =  node->get_child(i)->total_score();
+        auto move = node.get_child(i)->get_move();
+        auto branch_score =  node.get_child(i)->total_score();
         auto branch_nn_index =  move_as_nn_input(move);
 
         node_data.logits_.emplace_back(branch_score);
         node_data.logits_idcs_.emplace_back(branch_nn_index);
     }
 
-    node_data.value_ = node->total_score();
+    node_data.value_ = node.total_score();
     node_data.bt_ = bt;
 
     return node_data;
