@@ -1,7 +1,20 @@
 TEMPLATE = app
+
+greaterThan(QT_MAJOR_VERSION, 4): QT += core widgets
+QMAKE_CXXFLAGS += -mssse3 -O3 -std=gnu++17 -mavx
+
+QT       += core gui network
+
 CONFIG += console c++17
 CONFIG -= app_bundle
-CONFIG -= qt
+CONFIG += qt qmqtt
+CONFIG += QMQTT_WEBSOCKETS
+CONFIG += QMQTT_NO_SSL
+
+INCLUDEPATH += /home/dan/Dokument/qmqtt/src/mqtt
+LIBS +=  -L /home/dan/Document/qmqtt/src/mqt -lqmqtt -pthread
+
+DEFINES += QT_DEPRECATED_WARNINGS
 
 SOURCES += main.cpp \
     tests/chess_board_tests.cpp \
@@ -21,7 +34,11 @@ SOURCES += main.cpp \
     net/data_encoder.cpp \
     net/board_tensor.cpp \
     core/chess_attack_tables.cpp \
-    autoplay/auto_mcts_search_thread.cpp
+    autoplay/auto_mcts_search_thread.cpp \
+    tests/rollout_test.cpp \
+    net/mqtt_client.cpp \
+    mcts/mcts_signal_initiater.cpp \
+    mcts/cached_positions.cpp
 
 HEADERS +=\
     core/chess_castle.h \
@@ -36,9 +53,11 @@ HEADERS +=\
     net/data_encoder.h \
     net/board_tensor.h \
     core/chess_attack_tables.h \
-    autoplay/auto_mcts_search_thread.h
-
-LIBS += -pthread
+    autoplay/auto_mcts_search_thread.h \
+    tests/rollout_test.h \
+    net/mqtt_client.h \
+    mcts/mcts_signal_initiater.h \
+    mcts/cached_positions.h
 
 DISTFILES += \
     mcts/asdf.txt \

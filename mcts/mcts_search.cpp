@@ -3,19 +3,27 @@
 #include <iostream>
 #include <fstream>
 #include <thread>
-
+#include "mcts/mcts_node.h"
 #include "utils/global_utils.cpp"
 
 using namespace mcts;
 
-TreeSearch::TreeSearch(MoveGenerator* move_gen) :
+TreeSearch::TreeSearch(MoveGenerator* move_gen, int folder_id, int max_entries, int requested_rollouts,  NetCachedPositions* cached_positions) :
     move_gen_(move_gen),
-    rollout_(std::make_unique<Rollout> (move_gen))
+    folder_id_(folder_id),
+    max_entries_(max_entries),
+    max_rollouts_(requested_rollouts),
+    rollout_(std::make_unique<Rollout> (move_gen)),
+    cached_positions_(cached_positions)
+
 {
-    for(int i = 0; i < m_depth_; ++i)
+    for(int i = 0; i < 10; ++i)
     {
         depth_entries_[i] = 0;
     }
+
+    total_entries_ = 0;
+    total_rollouts_ = 0;
 
     srand((unsigned) time(0));
 }
@@ -26,6 +34,10 @@ void TreeSearch::init_tree(const ChessBoard &start_position)
         clear_tree();
 
     root_ = std::make_unique<Node> (start_position, nullptr);
+
+    total_entries_ = 1;
+    total_rollouts_ = 0;
+    t0_ = Timer();
 }
 
 
@@ -43,6 +55,7 @@ void TreeSearch::allocate_branch_expand_on_threads(std::vector<Node *> node_vec,
     std::cout << "branches : " << N << std::endl;
     int threads = 5 ;
 
+
      for(int n = 0; n < threads ; ++n)
      {
 //         void Rollout::thread_rollout(std::vector<Node *> nodelist, const int & thread_id, const int &N, const int &threads, const int &n_rollouts)
@@ -53,6 +66,116 @@ void TreeSearch::allocate_branch_expand_on_threads(std::vector<Node *> node_vec,
      vth.clear();
 
      std::cout << "performed " << N*rollouts_per_branch << " rollouts " << std::endl;
+}
+
+void TreeSearch::status_tree() const
+{
+    std::cout << " number of entries : " << total_entries_ << " -- total number of rollouts : " << total_rollouts_ << std::endl;
+
+    for(int i = 0; i < 10 ; ++i)
+    {
+        std::cout << "entries at depth : [" << i << "] = " << depth_entries_.at(i) << std::endl;
+    }
+
+    std::cout.precision(1);
+    std::cout << "time elapsed building tree : " << t0_.elapsed() << " seconds" << std::endl;
+
+    std::cout.precision(8);
+
+    root_->cb_.print_to_console();
+    root_->debug_print_child_totalscore();
+}
+
+ChessBoard TreeSearch::start_search()
+{
+    Node* current_ = nullptr;
+
+    int chkpt = 0;
+    int chkpt_ct = 0;
+
+    depth_entries_[0] = 1;
+
+    root_->cb_.print_to_console();
+
+    if(max_rollouts_ == -1 ) max_rollouts_ = max_entries_;
+
+    while(total_entries_ < max_entries_ || total_rollouts_ < max_rollouts_)
+    {
+        current_= root_.get();
+
+        //when tree is full, simply want to rollout randomly
+        if(total_entries_ >= max_entries_)
+        {
+            while(!current_->is_leaf())
+            {
+                int bscore_child = current_->min_max();
+
+                current_ = current_->get_child(bscore_child);
+            }
+
+            rollout_->perform_rollout(current_);
+            total_rollouts_++;
+
+            if(total_rollouts_ % 100000 == 0) std::cout << "Rollouts : " << total_rollouts_ << std::endl;
+
+            continue;
+        }
+
+        if(total_entries_ > chkpt)
+        {
+            std::cout << "%["  << chkpt_ct <<  "] " << std::endl;
+            chkpt_ct += 10;
+            chkpt += int(max_entries_ /10);
+        }
+
+        while(!current_->is_leaf())
+        {
+            int bscore_child = current_->min_max();
+
+            current_ = current_->get_child(bscore_child);
+        }
+
+        if( current_->get_visits() == 0 )
+        {
+            //explore it!
+            rollout_->perform_rollout(current_);
+            total_entries_++;
+        }
+        else
+        {
+            //expand it!
+
+            if(cached_positions_ && cached_positions_->exist(current_->cb_))
+            {
+                    std::pair<bool, std::vector<std::pair<int, float>>> nn_exp_data = cached_positions_->get(current_->cb_.get_zobrist());
+
+                    if(nn_exp_data.first)   rollout_->expand_node(current_, nn_exp_data.second , folder_id_);
+            }
+            else
+            {
+                return current_->cb_; //go out and request the position to be queued
+            }
+
+            total_entries_ += current_->get_n_childs();
+
+            depth_entries_.at(current_->get_depth() + 1) += current_->get_n_childs();
+
+            if(!current_->is_leaf())
+            {
+                int bscore_child = current_->min_max();
+
+                current_ = current_->get_child(bscore_child);
+
+                rollout_->perform_rollout(current_);
+
+                total_rollouts_++;
+            }
+            else
+            {
+                current_->propagate_score_update(current_->total_score());
+            }
+        }
+    }
 }
 
 void TreeSearch::start_search_full(int fill_depth, int rollouts_per_branch)
@@ -70,7 +193,7 @@ void TreeSearch::start_search_full(int fill_depth, int rollouts_per_branch)
     depth_nodes.emplace_back(root_.get());
     int total_rollouts = 0;
 
-    while(current_depth < fill_depth + 1)
+    while(current_depth < fill_depth)
     {
 
         std::vector<Node*> depth_nodes_new;
@@ -80,15 +203,9 @@ void TreeSearch::start_search_full(int fill_depth, int rollouts_per_branch)
         int n = 0;
         for(auto & node : depth_nodes)
         {
-              auto new_branches = rollout_->expand_and_rollout_node(node, fill_depth, rollouts_per_branch, total_rollouts);
+              auto new_branches = rollout_->expand_and_rollout_node(node, fill_depth, rollouts_per_branch, total_rollouts, folder_id_);
 
-//              if(current_depth == fill_depth)
-//              {
-//                  std::cout << "number of rollouts : " << total_rollouts <<  " progress : " << int(100.f / N * n) << " % " <<  std::endl;
-//              }
-//              ++n;
-
-              n_entries += new_branches.size();
+              total_entries_ += new_branches.size();
 
               std::copy(new_branches.begin(), new_branches.end(), std::back_inserter(depth_nodes_new));
         }
@@ -104,8 +221,6 @@ void TreeSearch::start_search_full(int fill_depth, int rollouts_per_branch)
 
     allocate_branch_expand_on_threads(depth_nodes, rollouts_per_branch); //wtf is this method name
 
-
-
     for(int i = 0; i < 10 ; ++i)
     {
         std::cout << "entries at depth : [" << i << "] = " << depth_entries_.at(i) << std::endl;
@@ -117,117 +232,6 @@ void TreeSearch::start_search_full(int fill_depth, int rollouts_per_branch)
     root_->debug_print_child_totalscore();
 }
 
-void TreeSearch::start_search(int max_entries, int requested_rollouts)
-{
-    int t_rollouts = 0;
-    int t_entries = 1;
-    Node* current_ = nullptr;
-
-    int chkpt = 0;
-    int chkpt_ct = 0;
-
-    Timer t0;    
-
-    depth_entries_[0] = 1;
-
-    if(requested_rollouts == -1 ) requested_rollouts = max_entries;
-
-
-    int tree_max_depth = 0;
-
-    while(t_entries < max_entries || t_rollouts < requested_rollouts)
-    {
-        current_= root_.get();
-
-        //when tree is full, simply want to rollout randomly
-        if(t_entries >= max_entries)
-        {
-//            int at_depth = rand() % tree_max_depth - 1;
-//            at_depth += 1;
-
-            while(!current_->is_leaf())
-            {
-                int bscore_child = current_->min_max();
-
-                current_ = current_->get_child(bscore_child);
-            }
-
-
-            rollout_->perform_rollout(current_);
-            t_rollouts++;
-
-            if(t_rollouts % 100000 == 0)
-            {
-                print(t_rollouts);
-            }
-
-
-            continue;
-        }
-
-        if(t_entries > chkpt)
-        {
-            std::cout << "%["  << chkpt_ct <<  "] " << std::endl;
-            chkpt_ct += 10;
-            chkpt += int(max_entries /10);
-        }
-
-        while(!current_->is_leaf())
-        {
-            int bscore_child = current_->min_max();
-
-            current_ = current_->get_child(bscore_child);
-        }
-
-        if( current_->get_visits() == 0 )
-        {
-            //explore it!            
-            rollout_->perform_rollout(current_);
-            t_rollouts++;
-        }
-        else
-        {           
-            //expand it!
-            rollout_->expand_node(current_);
-
-            t_entries += current_->get_n_childs();
-
-            if(m_depth_ > current_->get_depth() + 1)
-                depth_entries_.at(current_->get_depth() + 1) += current_->get_n_childs();
-
-            //explore any branch( all are as good, we take the first )
-            if(!current_->is_leaf())
-            {
-                current_ = current_->get_child(0);
-                rollout_->perform_rollout(current_);
-                t_rollouts++;
-            }
-            else
-            {
-                current_->propagate_score_update(current_->total_score());
-            }
-
-            if(current_->get_depth() > tree_max_depth)
-            {
-                tree_max_depth = current_->get_depth();
-            }
-        }
-    }
-
-    std::cout << " number of entries : " << t_entries << " -- total number of rollouts : " << t_rollouts << std::endl;
-
-    for(int i = 0; i < 10 ; ++i)
-    {
-        std::cout << "entries at depth : [" << i << "] = " << depth_entries_.at(i) << std::endl;
-    }
-
-    std::cout.precision(1);
-    std::cout << "time elapsed building tree : " << t0.elapsed() << " seconds" << std::endl;
-
-    std::cout.precision(8);
-
-    n_entries = t_entries;
-}
 
 void TreeSearch::extract_node_nn_data(Node *node, std::ofstream & node_data)
 {
@@ -276,7 +280,7 @@ void TreeSearch::log_data(std::string filepath)
     root_->debug_print_child_totalscore();
 
     //create vector of files
-    int N = n_entries;
+    int N = total_entries_;
     int entries_per_file = 1000;
     int n_files = int(N/entries_per_file);
 
@@ -300,7 +304,7 @@ void TreeSearch::log_data(std::string filepath)
 
 int TreeSearch::get_entries() const
 {
-    return n_entries;
+    return total_entries_;
 }
 
 

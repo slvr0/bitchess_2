@@ -5,6 +5,34 @@
 
 #include "utils/global_utils.cpp"
 
+#ifndef HAS_CXX14_CONSTEXPR
+#define HAS_CXX14_CONSTEXPR 0
+#endif
+
+#if HAS_CXX14_CONSTEXPR
+#define constexpr14 constexpr
+#else
+#define constexpr14
+#endif
+
+//Parallel Bits Extract
+//x    HGFEDCBA
+//mask 01100100
+//res  00000GFC
+//x86_64 BMI2: PEXT
+
+template <typename Integral>
+constexpr14 Integral extract_bits(Integral x, Integral mask) {
+  Integral res = 0;
+  for(Integral bb = 1; mask != 0; bb += bb) {
+    if(x & mask & -mask) {
+      res |= bb;
+    }
+    mask &= (mask - 1);
+  }
+  return res;
+}
+
 typedef std::pair<int,int> Direction;
 
 void                   init_tables();

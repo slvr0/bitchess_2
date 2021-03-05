@@ -60,11 +60,14 @@ public:
     void update_zobrist(const ChessMove& move);
     inline uint64_t get_zobrist() const { return z_hash_;}
 
+    std::string fen() const ;
+
 private :
     std::string fen_string_ = "";
 
     uint rule50_ = 0;
     uint total_moves_ = 0;
+
     int three_repeat_ = 0;
     int white_toact_ = 1;
     int enpassant_ = -1;

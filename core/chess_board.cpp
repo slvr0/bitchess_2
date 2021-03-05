@@ -1,19 +1,14 @@
 #include "chess_board.h"
 
-#include <iostream>
 #include <vector>
-#include <cstring>
 #include <algorithm>
-#include <cctype>
-#include <cstdlib>
 #include <sstream>
 #include <string>
-#include <stdio.h>
-#include <ctype.h>
 
 #include "utils/global_utils.cpp"
 #include "core/zobr_hash.h"
 
+#include <exception>
 
 ChessBoard::ChessBoard() :
     rule50_(0),
@@ -31,7 +26,7 @@ ChessBoard::ChessBoard(std::string fen_string) :
     three_repeat_(0),
     white_toact_(1),
     enpassant_(-1)
-{
+{    
     set_from_fen(fen_string);
 }
 
@@ -84,7 +79,7 @@ void ChessBoard::mirror()
     std::swap(king_, enemy_king_);
     std::swap(our_pieces_, enemy_pieces_);
 
-    white_toact_ = white_toact_ ? 0 : 1;
+    white_toact_ = white_toact_ == 1 ? 0 : 1;
 
     if(enpassant_ != -1)
     {
@@ -351,8 +346,88 @@ void ChessBoard::update_zobrist(const ChessMove &move)
     }
 }
 
+std::string ChessBoard::fen() const
+{
+    std::string fen;
+
+    int voids_count = 0;
+
+    for(int r =7; r >= 0 ; r--)
+    {
+        for(int c = 0 ; c < 8; ++c)
+        {
+            auto space_occ = this->occupied_by(r*8 + c).first;
+
+            if(space_occ == ',') voids_count++;
+            else
+            {
+                if(voids_count != 0) fen.append(std::to_string(voids_count));
+                fen.push_back(space_occ);
+                voids_count = 0;
+            }
+        }
+
+    if(voids_count != 0) fen.append(std::to_string(voids_count));
+    voids_count = 0;
+    fen.push_back('/');
+    }
+
+    //to act
+    fen.append(white_toact_ ? " w" : " b");
+
+    //castling state (remember, this is mirrored so KQ if its black turn should be noted as kq.
+    bool we_00 = castling_.getWe_00();
+    bool we_000 = castling_.getWe_000();
+    bool e_00 = castling_.getEnemy_00();
+    bool e_000 = castling_.getEnemy_000();
+
+    std::string castle_string = " ";
+
+    if (white_toact_)
+    {
+        if(we_00) castle_string.push_back('Q');
+        if(we_000) castle_string.push_back('K');
+        if(e_00) castle_string.push_back('q');
+        if(e_000) castle_string.push_back('k');
+    }
+    else
+    {
+        if(we_00) castle_string.push_back('q');
+        if(we_000) castle_string.push_back('k');
+        if(e_00) castle_string.push_back('Q');
+        if(e_000) castle_string.push_back('K');
+    }
+    if(!we_00 && !we_000 && !e_00 && !e_000)fen.append(" -");
+    else fen.append(castle_string);
+
+    //enpassant, simple dash if no square (-)
+
+    std::string enp_not;
+    if(enpassant_ == -1) enp_not = " -";
+    else
+    {
+        enp_not = " " +board_notations[enpassant_];
+        std::transform(enp_not.begin(), enp_not.end(),enp_not.begin(), tolower);
+    }
+
+    fen.append(enp_not);
+
+    //50 rule count, for no pawn movements
+    fen.append(" " + std::to_string(this->rule50_));
+
+    //move count total
+     fen.append(" " + std::to_string(this->total_moves_));
+
+
+
+
+
+    return fen;
+}
+
 void ChessBoard::set_from_fen(std::string fen_string)
 {
+
         int row = 7;
         int col = 0;
 
@@ -418,7 +493,10 @@ void ChessBoard::set_from_fen(std::string fen_string)
         total_moves_ = total_moves;
 
         if(en_passant == "-") enpassant_ = -1 ;
-        else enpassant_ = std::stoi(en_passant);
+        else enpassant_ = get_idx_from_notation(en_passant);
+
+
+
 
         castling_.setWe_00(castlings.find('K') != std::string::npos);
         castling_.setWe_000(castlings.find('Q') != std::string::npos);

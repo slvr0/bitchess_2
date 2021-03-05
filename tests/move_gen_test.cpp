@@ -67,7 +67,6 @@ void move_gen_test_ply(const int & max_depth)
 
     ChessBoard cb(fen_pos);
 
-
     Timer t0;
     float _time = 0.f;
     int depth = 0;

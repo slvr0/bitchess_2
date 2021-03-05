@@ -20,8 +20,6 @@ constexpr uint64_t row_col_to_idx(const uint64_t& row, const uint64_t& col)
 
 inline bool on_board(const int & row, const int & col){return   row >= 0 && row < 8 && col >= 0 && col < 8;}
 
-
-
 template <typename T>
 void print(T & v)
 {
@@ -46,7 +44,7 @@ return v;
 }
 
 
-inline uint64_t transpose_bits_in_byes(const uint64_t&  x)
+inline uint64_t transpose_bits_in_bytes(const uint64_t&  x)
 {
      uint64_t v = x;
   v = (v & 0xAA00AA00AA00AA00ULL) >> 9 | (v & 0x0055005500550055ULL) << 9 |
@@ -77,6 +75,16 @@ inline unsigned long pop_count(const uint64_t& v )
 inline unsigned long least_bit(const uint64_t &v)
 {
     return __builtin_ctzll(v);
+}
+
+inline std::vector<int> find_all_char_positions_in_string(std::string sample, char findIt)
+{
+    std::vector<int> characterLocations;
+    for(int i =0; i < sample.size(); i++)
+        if(sample[i] == findIt)
+            characterLocations.push_back(i);
+
+    return characterLocations;
 }
 
 template <typename T>
@@ -139,7 +147,7 @@ public :
 
     }
 
-    double elapsed()
+    double elapsed() const
     {
         return std::chrono::duration_cast<second_t>(clock_t::now() - time_).count();
     }

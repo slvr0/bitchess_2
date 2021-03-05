@@ -13,20 +13,22 @@
 
 //contains a chessboard and an array of branches (positions that can be traversed) also holds a ucb1 score
 
-namespace mcts
-{
+
+namespace mcts{
+
+
 class Node
 {
 public:
-    Node(ChessBoard cb, Node* parent = nullptr, int id = 0);
-    Node(ChessBoard cb, ChessMove move, Node* parent = nullptr, int id = 0);
+    Node(ChessBoard cb, Node* parent = nullptr, int folder_id = 0);
+    Node(ChessBoard cb, ChessMove move, Node* parent = nullptr, int folder_id = 0);
 
     inline ChessBoard get_board() const {return cb_;}
 
     void propagate_score_update(const float & score);
 
-    inline void add_child(const ChessBoard cb) {childs_.emplace_back(std::make_unique<Node>(cb, this));}
-    inline void add_child(const ChessBoard cb, ChessMove move) {childs_.emplace_back(std::make_unique<Node>(cb, move, this));}
+    inline void add_child(const ChessBoard cb, int folder_id) {childs_.emplace_back(std::make_unique<Node>(cb, this, folder_id));}
+    inline void add_child(const ChessBoard cb, ChessMove move, int folder_id) {childs_.emplace_back(std::make_unique<Node>(cb, move, this, folder_id));}
 
 //    inline void add_child(std::unique_ptr<Node> child) {childs_.emplace_back(std::move(child));}
     inline Node* get_child(const int & c_idx) const { return childs_.at(c_idx).get();}
@@ -48,7 +50,7 @@ public:
     void debug_print_childucb0();
 
     void debug_print_child_totalscore();
-    inline int get_id() const { return id_;}
+    inline int get_id() const { return folder_id_;}
 
     void nn_thread_log(DataEncoder& encoder_, std::ofstream & file);
     void nn_log_norecursive(DataEncoder& encoder_, std::ofstream & file);
@@ -72,13 +74,15 @@ public:
         return childs;
     }
 
+    std::pair<std::vector<float>, std::vector<int> > get_logits_idc_pair() const;
+
 
     inline ChessMove get_move() const { return move_; }
 private:
     int depth_ = 0;
     double score_ = 0;
     int visits_ = 0;
-    int id_;
+    int folder_id_;
     int is_white_node_ = 1;
     int status_ = 0;
 
@@ -88,6 +92,8 @@ private:
     ChessMove move_; // what move let to this position
 
     bool logged_ = false;
+
+
 
 };
 }

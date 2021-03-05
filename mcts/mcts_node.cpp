@@ -7,21 +7,22 @@
 #include <iostream>
 #include <iomanip>
 #include <chrono>
+
 using namespace std::chrono;
 
 #include <stdlib.h> // defines putenv in POSIX
 
-
 #include <mutex>          // std::mutex
-std::mutex mtx;
+
+//std::mutex mtx;
 
 using namespace mcts;
 
 
-Node::Node(ChessBoard cb,Node* parent, int id) :
+Node::Node(ChessBoard cb,Node* parent, int folder_id) :
     parent_(parent),
     cb_(cb),
-    id_(id)
+    folder_id_(folder_id)
 {
     if(parent) depth_ = parent->get_depth() + 1;
     else depth_ = 0;
@@ -29,11 +30,11 @@ Node::Node(ChessBoard cb,Node* parent, int id) :
     is_white_node_ = cb_.get_whitetoact();
 }
 
-Node::Node(ChessBoard cb, ChessMove move, Node* parent, int id) :
+Node::Node(ChessBoard cb, ChessMove move, Node* parent, int folder_id) :
     parent_(parent),
     cb_(cb),
     move_(move),
-    id_(id)
+    folder_id_(folder_id)
 {
     if(parent) depth_ = parent->get_depth() + 1;
     else depth_ = 0;
@@ -46,16 +47,28 @@ void Node::propagate_score_update(const float & score)
 {
     //mtx.lock();
 
-    if(abs(score) != 2.0f && is_white_node_ != 0) score_ -= score;
+    if(abs(score) != 2.0f && is_white_node_ == 0) score_ -= score;
     else score_ += score;
 
     visits_++;
 
     //mtx.unlock();
 
-
-    if(!logged_ && visits_ >= 5000)
+    if(!logged_ && !this->is_leaf() && visits_ >= 50000)
     {
+        bool log_criteria_fullfill = true;
+
+//        for(const auto & child : this->get_childs() )
+//        {
+//            if(child->get_visits() <  10000)
+//            {
+//                log_criteria_fullfill = false;
+//                break;
+//            }
+//        }
+
+        if(log_criteria_fullfill)
+        {
             logged_ = true;
             //dump data to a random file
 
@@ -63,12 +76,13 @@ void Node::propagate_score_update(const float & score)
                 system_clock::now().time_since_epoch()
             );
 
-            std::string filepath("training_data/file_" + std::to_string(ms.count()) + ".txt");
+            std::string full_path("training_data/sess_" + std::to_string(folder_id_) + "/file_" + std::to_string(ms.count()) + ".txt");
 
-            std::ofstream fstream_(filepath);
+            std::ofstream fstream_(full_path);
 
            DataEncoder enc;
            this->nn_log_norecursive(enc, fstream_);
+        }
     }
 
     if(parent_) parent_->propagate_score_update(score);
@@ -77,7 +91,7 @@ void Node::propagate_score_update(const float & score)
 
 double Node::ucb1_score()
 {
-    float explore_rate = 2.f;
+    float explore_rate = 1.f;
 
     int parent_visits = parent_ ? parent_->get_visits() : 0;
 
@@ -397,4 +411,16 @@ int Node::color() const
 void Node::setIs_white_node(int is_white_node)
 {
     is_white_node_ = is_white_node;
+}
+
+std::pair<std::vector<float>, std::vector<int> > Node::get_logits_idc_pair() const
+{
+    std::vector<float> logits;
+    std::vector<int> idc; // NN idcs!!
+
+    DataEncoder encoder;
+
+     MctsNodeData node_data = encoder.node_as_nn_input(*(this));
+
+     return std::pair<std::vector<float>, std::vector<int> > (node_data.logits_, node_data.logits_idcs_);
 }

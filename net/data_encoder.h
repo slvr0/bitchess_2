@@ -19,8 +19,8 @@ struct MctsNodeData
 {
     BoardTensor bt_;
 
-    std::vector<double> logits_; // branch values
-    std::vector<double> logits_idcs_;
+    std::vector<float> logits_; // branch values
+    std::vector<int> logits_idcs_;
     double value_; //node value
 };
 

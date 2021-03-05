@@ -43,12 +43,12 @@ BoardInfo BoardWrapper::get_info() const
 
     int rule_50 = cb_.get_rule50();
     int total_moves = cb_.get_total_moves(); // is this really incrememented when updating move?
-    int hash_key = cb_.get_zobrist();
+    int hash_key = cb_.get_zobrist(); //TBI
 
     float reward = 0.f;
     //todo, add threfold rep
 
-    float draw_score = 0.5f;
+    float draw_score = 2.0f;
     if(movelist_.empty())
     {
         done = true;
@@ -56,13 +56,13 @@ BoardInfo BoardWrapper::get_info() const
         if(king_under_attack_)
         {
             if(white_toact)
-            {        
-                reward =  -2.f;
+            {
+                reward =  -10.f;
                 status = 2;
             }
             else
             {        
-                reward =  2.f;
+                reward =  10.f;
                 status = 1;
             }
         }
@@ -73,7 +73,7 @@ BoardInfo BoardWrapper::get_info() const
 
         }
     }
-    else if(rule_50 >= 50 ||  total_moves > 200 || !cb_.has_mating_chance())
+    else if(total_moves > 150 || !cb_.has_mating_chance())
     {
         reward = draw_score;
         status = 3;
@@ -149,6 +149,11 @@ void BoardWrapper::reset(const ChessBoard &cb)
 
     starting_color_white_ = cb.get_whitetoact();
     king_under_attack_ = false;
+
+//    if(!starting_color_white_)
+//    {
+//        cb_.mirror();
+//    }
 }
 
 void BoardWrapper::show_state() const

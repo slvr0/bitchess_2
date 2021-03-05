@@ -21,9 +21,6 @@ uint64_t get_rook_attacks(const uint64_t & occ, const unsigned long idx)
     occ_c *= rook_magic_numbers[idx];
     occ_c >>= 64 - rook_shifts[idx];
 
-//    ChessBoard cb;
-//    print(idx);
-//    cb.print_bitboard(rook_attacks_[idx]);
 
     return rook_lookup_[idx][occ_c];
 }

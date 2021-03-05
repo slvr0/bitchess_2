@@ -1,6 +1,8 @@
 #pragma once
 
 #include <iostream>
+#include <algorithm>
+#include <string>
 
 static const std::string board_notations[] =
 {"A1","B1","C1","D1","E1","F1","G1","H1",
@@ -12,6 +14,16 @@ static const std::string board_notations[] =
   "A7","B7","C7","D7","E7","F7","G7","H7",
   "A8","B8","C8","D8","E8","F8","G8","H8"
 };
+
+static int get_idx_from_notation(std::string notation)
+{
+    std::transform(notation.begin(), notation.end(),notation.begin(), toupper);
+
+    auto element = std::find(std::begin(board_notations), std::end(board_notations), notation);
+
+    if (element != std::end(board_notations))  return std::distance(board_notations, element);
+    else return -1;
+}
 
 const std::string nn_action_space_str[]= {
         "a1b1",  "a1c1",  "a1d1",  "a1e1",  "a1f1",  "a1g1",  "a1h1",  "a1a2",
