@@ -19,10 +19,11 @@ using namespace std::chrono;
 using namespace mcts;
 
 
-Node::Node(ChessBoard cb,Node* parent, int folder_id) :
+Node::Node(ChessBoard cb, Node* parent, int folder_id, float score) :
     parent_(parent),
     cb_(cb),
-    folder_id_(folder_id)
+    folder_id_(folder_id),
+    score_(score)
 {
     if(parent) depth_ = parent->get_depth() + 1;
     else depth_ = 0;
@@ -30,11 +31,12 @@ Node::Node(ChessBoard cb,Node* parent, int folder_id) :
     is_white_node_ = cb_.get_whitetoact();
 }
 
-Node::Node(ChessBoard cb, ChessMove move, Node* parent, int folder_id) :
+Node::Node(ChessBoard cb, ChessMove move, Node* parent, int folder_id, float score) :
     parent_(parent),
     cb_(cb),
     move_(move),
-    folder_id_(folder_id)
+    folder_id_(folder_id),
+    score_(score)
 {
     if(parent) depth_ = parent->get_depth() + 1;
     else depth_ = 0;

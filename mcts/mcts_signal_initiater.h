@@ -16,6 +16,7 @@
 #include <qt5/QtNetwork/QHostAddress>
 #include <qt5/QtCore/QObject>
 #include <qt5/QtWidgets/QWidget>
+#include <qt5/QtCore/QThread>
 
 #include <QCoreApplication>
 #include <QTimer>
@@ -29,7 +30,7 @@ class MCTSSignalInitiater : public QObject
 {
     Q_OBJECT
 public:
-    explicit MCTSSignalInitiater(std::vector<Subscriber*> subscribers, Publisher *mqtt_publisher, QObject* parent = NULL);
+    explicit MCTSSignalInitiater(MQTT_PIPE_THREAD& comm_thread, QObject* parent = NULL);
     virtual ~MCTSSignalInitiater() {}
 
     void clear_tree();
@@ -41,18 +42,23 @@ public  slots :
 private :
     bool handshake_message(const std::string &message);
 
-    std::pair<uint64_t, std::vector<std::pair<int, float>>> decode_query_position(std::string decoded) const;
+    std::pair<uint64_t, std::map<int, float> > decode_query_position(std::string decoded) const;
 
 private:
     std::unique_ptr<NetCachedPositions> cached_positions_;
-    Subscriber* mqtt_receiver_;
-    Publisher* mqtt_publisher_;
+
+    MQTT_PIPE* init_finish_pipe_ = nullptr;
+    MQTT_PIPE* cache_query_pipe_= nullptr;
+
     MoveGenerator move_gen_;
 
     QMQTT::Message  init_message_;
     bool is_search_ongoing_ = false;
 
     std::unique_ptr<mcts::TreeSearch> tree_search_;
+
+    int max_entries_;
+    int n_rollouts_;
 
 
 };

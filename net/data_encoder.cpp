@@ -49,12 +49,15 @@ BoardTensor DataEncoder::board_as_tensor(const ChessBoard &cb) const
     return bt;
 }
 
-int DataEncoder::move_as_nn_input(const ChessMove &move) const
+int DataEncoder::move_as_nn_input(const ChessMove &move, int white_toact) const
 {
     int from = move.from();
     int to = move.to();
     char promo = move.promotion();
     std::string s;
+
+//    to = white_toact ? to : 63 - to;
+//    from = white_toact ? from : 63 - from;
 
     auto f_string = board_notations[from];
     std::for_each(f_string.begin(), f_string.end(), [](char & c) {
@@ -79,8 +82,6 @@ int DataEncoder::move_as_nn_input(const ChessMove &move) const
 
     if(action_id != std::end(nn_action_space_str))
     {
-        int action_pos = std::distance(nn_action_space_str, action_id);
-
         return std::distance(nn_action_space_str, action_id);
     }
     else

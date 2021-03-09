@@ -20,15 +20,18 @@ namespace mcts{
 class Node
 {
 public:
-    Node(ChessBoard cb, Node* parent = nullptr, int folder_id = 0);
-    Node(ChessBoard cb, ChessMove move, Node* parent = nullptr, int folder_id = 0);
+    Node(ChessBoard cb, Node* parent = nullptr, int folder_id = 0, float score = 0);
+    Node(ChessBoard cb, ChessMove move, Node* parent = nullptr, int folder_id = 0, float score = 0);
 
     inline ChessBoard get_board() const {return cb_;}
 
     void propagate_score_update(const float & score);
 
     inline void add_child(const ChessBoard cb, int folder_id) {childs_.emplace_back(std::make_unique<Node>(cb, this, folder_id));}
+    inline void add_child(const ChessBoard cb, int folder_id, const float& score) {childs_.emplace_back(std::make_unique<Node>(cb, this, folder_id, score));}
+
     inline void add_child(const ChessBoard cb, ChessMove move, int folder_id) {childs_.emplace_back(std::make_unique<Node>(cb, move, this, folder_id));}
+    inline void add_child(const ChessBoard cb, ChessMove move, int folder_id, const float& score) {childs_.emplace_back(std::make_unique<Node>(cb, move, this, folder_id, score));}
 
 //    inline void add_child(std::unique_ptr<Node> child) {childs_.emplace_back(std::move(child));}
     inline Node* get_child(const int & c_idx) const { return childs_.at(c_idx).get();}

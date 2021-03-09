@@ -1,9 +1,11 @@
 #pragma once
 
 #include <memory>
+#include <map>
 
 #include "autoplay/board_wrapper.h"
 
+class DataEncoder;
 
 //board wrapper input, now is fucked up because we can only have one instance of move generator. i gotta fix the static instancing of all arrays so we can do multiple move gens without reiniting all stuff
 
@@ -21,7 +23,7 @@ public:
     //plays out the game and automatically calls backward prop of score on the node input
     void perform_rollout(Node* node);
 
-    void expand_node(Node* node, std::vector<std::pair<int, float> > nn_expand_data, int folder_id);
+    void expand_node(Node* node, std::map<int, float> nn_expand_data, int folder_id);
 
     std::vector<Node*> expand_and_rollout_node(Node* node, int rollout_at_depth, int n_rollouts, int &total_rollouts, int folder_id);
 
@@ -30,6 +32,9 @@ public:
 
 private:
     std::unique_ptr<BoardWrapper> env_;
+    std::unique_ptr<DataEncoder> encoder_;
+
+
 };
 }
 

@@ -87,6 +87,8 @@ void ChessBoard::mirror()
     }
 
     castling_.mirror();
+
+    set_zobrist();
 }
 
 void ChessBoard::add_piece(const uint8_t &square, char ptype)
@@ -272,6 +274,8 @@ void ChessBoard::update_from_move(const ChessMove &move)
     }
 
     castling_.update_castlestatus(move, white_toact_);
+
+    set_zobrist();
 }
 
 void ChessBoard::set_zobrist()
@@ -284,14 +288,16 @@ void ChessBoard::set_zobrist()
 
        if(occ_pair.first == -1) continue;
 
-       if(white_toact_)
-       {
-           zv ^= get_hash(i, occ_pair.first);
-       }
-       else
-       {
-           zv ^= get_hash(63-i,occ_pair.first);
-       }
+       zv ^= get_hash(i, occ_pair.first);
+
+//       if(white_toact_)
+//       {
+//           zv ^= get_hash(i, occ_pair.first);
+//       }
+//       else
+//       {
+//           zv ^= get_hash(63-i,occ_pair.first);
+//       }
     }
 
      z_hash_ = zv;
@@ -348,6 +354,7 @@ void ChessBoard::update_zobrist(const ChessMove &move)
 
 std::string ChessBoard::fen() const
 {
+
     std::string fen;
 
     int voids_count = 0;
@@ -356,12 +363,22 @@ std::string ChessBoard::fen() const
     {
         for(int c = 0 ; c < 8; ++c)
         {
-            auto space_occ = this->occupied_by(r*8 + c).first;
+            int idx = r*8+c;
+            idx = white_toact_ ? idx : 63 - idx;
+            auto space_occ = this->occupied_by(idx).first;
 
             if(space_occ == ',') voids_count++;
             else
             {
                 if(voids_count != 0) fen.append(std::to_string(voids_count));
+
+                //remember , colors flipped for black, switch upper/lower case
+                if(white_toact_ == 0 )
+                {
+                    if(isupper(space_occ)) space_occ = tolower(space_occ);
+                    else space_occ = toupper(space_occ);
+                }
+
                 fen.push_back(space_occ);
                 voids_count = 0;
             }
@@ -369,7 +386,7 @@ std::string ChessBoard::fen() const
 
     if(voids_count != 0) fen.append(std::to_string(voids_count));
     voids_count = 0;
-    fen.push_back('/');
+    if(r>=1) fen.push_back('/');
     }
 
     //to act
@@ -417,10 +434,6 @@ std::string ChessBoard::fen() const
 
     //move count total
      fen.append(" " + std::to_string(this->total_moves_));
-
-
-
-
 
     return fen;
 }
@@ -495,9 +508,6 @@ void ChessBoard::set_from_fen(std::string fen_string)
         if(en_passant == "-") enpassant_ = -1 ;
         else enpassant_ = get_idx_from_notation(en_passant);
 
-
-
-
         castling_.setWe_00(castlings.find('K') != std::string::npos);
         castling_.setWe_000(castlings.find('Q') != std::string::npos);
         castling_.setEnemy_00(castlings.find('k') != std::string::npos);
@@ -509,9 +519,11 @@ void ChessBoard::set_from_fen(std::string fen_string)
         {
             print("Flip starting position on board from fen status");
             //flip
-            white_toact_ = 1; //then flip it to black
+//            white_toact_ = 1; //then flip it to black
             this->mirror();
         }
+
+        this->set_zobrist();
 }
 
 std::vector<char> ChessBoard::_fill_printer(const int &print_mode, char spec_type) const

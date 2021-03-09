@@ -17,12 +17,12 @@ namespace mcts
 class TreeSearch
 {
 public:
-    TreeSearch(MoveGenerator* move_gen, int folder_id, int max_entries, int requested_rollouts,  NetCachedPositions* cached_positions);
+    TreeSearch(MoveGenerator* move_gen, int folder_id, int max_entries, int requested_rollouts,  NetCachedPositions* cached_positions, MQTT_PIPE * mqtt_query_cache_pipe);
 
     void init_tree(const ChessBoard & start_position);
     void clear_tree();
 
-    ChessBoard start_search();
+    void start_search();
 
     void start_search_full(int fill_depth, int rollouts_per_branch);
 
@@ -39,6 +39,8 @@ public:
     void status_tree() const;
 
 private:
+
+    MQTT_PIPE * mqtt_query_cache_pipe_;
 
     MoveGenerator* move_gen_ = nullptr;
 

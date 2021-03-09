@@ -1,118 +1,71 @@
 #pragma once
 
-#include <qmqtt.h>
-
-#include <qmqtt_client.h>
-#include <qmqtt_frame.h>
-#include <qmqtt_global.h>
-#include <qmqtt_message.h>
-
-#include <qt5/QtNetwork/QHostAddress>
-#include <qt5/QtCore/QObject>
-#include <qt5/QtWidgets/QWidget>
-
-#include <qmqtt.h>
-#include <QCoreApplication>
-#include <QTimer>
 #include <iostream>
 
-const QHostAddress EXAMPLE_HOST = QHostAddress::LocalHost;
-const quint16 EXAMPLE_PORT = 1883;
-const QString EXAMPLE_TOPIC = "mqtt_test";
+#include <QObject>
+#include <QHostAddress>
+#include <QTextStream>
+#include <QThread>
 
-class Publisher : public QMQTT::Client
+#include <qmqtt.h>
+
+#include <vector>
+#include "net/mqtt_client.h"
+
+const QHostAddress default_host = QHostAddress::LocalHost;
+const quint16 default_port = 1883;
+const QString default_publish_topic = "mcts_nn_que";
+
+class MQTT_PIPE;
+
+class MQTT_PIPE_THREAD : public QThread
 {
     Q_OBJECT
-public:
-    explicit Publisher(const QHostAddress& host = EXAMPLE_HOST,
-                       const quint16 port = EXAMPLE_PORT,
-                       QObject* parent = NULL)
-        : QMQTT::Client(host, port, parent)
-        , _number(0)
-    {
-        connect(this, &Publisher::connected, this, &Publisher::onConnected);
-        connect(&_timer, &QTimer::timeout, this, &Publisher::onTimeout);
-        connect(this, &Publisher::disconnected, this, &Publisher::onDisconnected);
-    }
-    virtual ~Publisher() {}
 
-    QTimer _timer;
-    quint16 _number;
+public :
+    MQTT_PIPE_THREAD(QObject* parent = nullptr);
 
-public slots:
-    void onConnected()
-    {
-        subscribe(EXAMPLE_TOPIC, 0);
-        _timer.start(1000);
-    }
+    void append_and_allocate_client(MQTT_PIPE *client);
 
-    void onTimeout()
-    {
-        QMQTT::Message message(_number, EXAMPLE_TOPIC,
-                               QString("Number is %1").arg(_number).toUtf8());
-        publish(message);
-        _number++;
-        if(_number >= 10)
-        {
-            _timer.stop();
-            disconnectFromHost();
-        }
-    }
+    std::vector<MQTT_PIPE*> get_clients() const;
 
-    void onDisconnected()
-    {
-        QTimer::singleShot(0, qApp, &QCoreApplication::quit);
-    }
+private:
+    std::vector<MQTT_PIPE*> clients_;
+
 };
 
-class Subscriber : public QMQTT::Client
+class MQTT_PIPE : public QMQTT::Client
 {
     Q_OBJECT
 public:
-    explicit Subscriber(const QHostAddress& host = EXAMPLE_HOST,
-                        const quint16 port = EXAMPLE_PORT,
-                        QObject* parent = NULL)
-        : QMQTT::Client(host, port, parent)
-        , _qout(stdout)
-    {
-        connect(this, &Subscriber::connected, this, &Subscriber::onConnected);
-        connect(this, &Subscriber::subscribed, this, &Subscriber::onSubscribed);
-        connect(this, &Subscriber::received, this, &Subscriber::onReceived);
+    MQTT_PIPE(const QHostAddress host_adress = default_host, const quint16 port = default_port, QObject* parent = nullptr);
 
-        qDebug() << "subscriber initiated";
-    }
-    virtual ~Subscriber() {}
+    virtual ~MQTT_PIPE(){}
 
-    QTextStream _qout;
-    inline QString topic() const
-    {
-        return topic_;
-    }
+    void set_topic(const QString& topic);
+    void set_topic(std::string& topic);
 
-    inline void set_topic(const QString& topic)
-    {
-        topic_ = topic;
-    }
+    QString get_topic() const;
+    bool get_is_connected() const;
 
-public slots:
-    void onConnected()
-    {
-        _qout << "connected" << endl;
-        subscribe(topic_, 0);
-    }
+    QString get_publish_topic() const;
+    void set_publish_topic(const QString &publish_topic);
 
-    void onSubscribed(const QString& topic)
-    {
-        _qout << "subscribed " << topic << endl;
-    }
+    void publish_message(const std::string message);
+    void publish_message(const QString & message);
 
-    void onReceived(const QMQTT::Message& message)
-    {
-        _qout << "publish received: \"" << QString::fromUtf8(message.payload())
-              << "\"" << endl;
-    }
+    void allocate_to_thread(QThread *thread);
+
+
+private slots:
+    void on_connect();
+    void on_receive(const QMQTT::Message& message);
+    void on_subscribed(const QString& topic);
 
 private :
     QString topic_;
+    QString publish_topic_;
+    quint8 qos_;
+
 
 };

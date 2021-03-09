@@ -8,13 +8,14 @@
 
 using namespace mcts;
 
-TreeSearch::TreeSearch(MoveGenerator* move_gen, int folder_id, int max_entries, int requested_rollouts,  NetCachedPositions* cached_positions) :
+TreeSearch::TreeSearch(MoveGenerator* move_gen, int folder_id, int max_entries, int requested_rollouts,  NetCachedPositions* cached_positions, MQTT_PIPE *mqtt_query_cache_pipe) :
     move_gen_(move_gen),
     folder_id_(folder_id),
     max_entries_(max_entries),
     max_rollouts_(requested_rollouts),
     rollout_(std::make_unique<Rollout> (move_gen)),
-    cached_positions_(cached_positions)
+    cached_positions_(cached_positions),
+    mqtt_query_cache_pipe_(mqtt_query_cache_pipe)
 
 {
     for(int i = 0; i < 10; ++i)
@@ -86,7 +87,7 @@ void TreeSearch::status_tree() const
     root_->debug_print_child_totalscore();
 }
 
-ChessBoard TreeSearch::start_search()
+void TreeSearch::start_search()
 {
     Node* current_ = nullptr;
 
@@ -145,16 +146,15 @@ ChessBoard TreeSearch::start_search()
         {
             //expand it!
 
-            if(cached_positions_ && cached_positions_->exist(current_->cb_))
+            if(!cached_positions_->exist(current_->cb_))
             {
-                    std::pair<bool, std::vector<std::pair<int, float>>> nn_exp_data = cached_positions_->get(current_->cb_.get_zobrist());
+                mqtt_query_cache_pipe_->publish_message(current_->cb_.fen());
+                return;
+            }
 
-                    if(nn_exp_data.first)   rollout_->expand_node(current_, nn_exp_data.second , folder_id_);
-            }
-            else
-            {
-                return current_->cb_; //go out and request the position to be queued
-            }
+            std::map<int, float> nn_exp_data = cached_positions_->get(current_->cb_.get_zobrist());
+
+            rollout_->expand_node(current_, nn_exp_data , folder_id_);
 
             total_entries_ += current_->get_n_childs();
 
@@ -176,6 +176,11 @@ ChessBoard TreeSearch::start_search()
             }
         }
     }
+
+    int  winner = get_best_move();
+
+    //evaluate best move, send it on mcts_tree_finish!;
+
 }
 
 void TreeSearch::start_search_full(int fill_depth, int rollouts_per_branch)
@@ -300,6 +305,12 @@ void TreeSearch::log_data(std::string filepath)
     {
         filestream->close();
     }
+}
+
+int TreeSearch::get_best_move() const
+{
+    print("about to publish best move!!!");
+    return 0;
 }
 
 int TreeSearch::get_entries() const

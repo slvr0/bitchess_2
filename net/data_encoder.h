@@ -30,7 +30,7 @@ public:
     DataEncoder();
 
     BoardTensor board_as_tensor(const ChessBoard & cb) const;
-    int move_as_nn_input(const ChessMove & move) const;
+    int move_as_nn_input(const ChessMove & move, int white_toact = 1) const;
 
    MctsNodeData node_as_nn_input(const mcts::Node& node) const;
 

@@ -10,29 +10,37 @@
 #include "core/chess_move.h"
 #include "utils/global_utils.cpp"
 
-MCTSSignalInitiater::MCTSSignalInitiater(std::vector<Subscriber*> subscribers, Publisher* mqtt_publisher, QObject* parent) :
+
+MCTSSignalInitiater::MCTSSignalInitiater(MQTT_PIPE_THREAD& comm_thread, QObject* parent) :
     tree_search_(nullptr),
     cached_positions_(std::make_unique<NetCachedPositions> ()),
-    mqtt_publisher_(mqtt_publisher),
     QObject(parent)
 {
-    for(auto & mqtt_subscriber : subscribers)
-    {
-        //print(mqtt_subscriber->topic());
-
-        if(QString::compare(mqtt_subscriber->topic(), QString("mcts_tree_init"),Qt::CaseInsensitive) == 0)
-                connect(mqtt_subscriber, &Subscriber::received, this, &MCTSSignalInitiater::query_mcts);
-        else if(QString::compare(mqtt_subscriber->topic(), QString("mcts_cache_position"),Qt::CaseInsensitive) == 0)
-                connect(mqtt_subscriber, &Subscriber::received, this, &MCTSSignalInitiater::query_position);
-    }
-
     int max_entries = 1000;
     float rollout_entries_ratio = 0.6f;
     int n_rollouts = int(max_entries * rollout_entries_ratio);
 
-    tree_search_ = std::make_unique<mcts::TreeSearch>(&move_gen_, 1, max_entries, n_rollouts, cached_positions_.get());
+    cached_positions_ = std::make_unique<NetCachedPositions> ();
 
-    print("signals mcts_tree_init and mcts_cache_position connected, tree search is set, cached positions is initiated");
+    for(const auto & mqtt_pipe : comm_thread.get_clients())
+    {     
+        if(QString::compare(mqtt_pipe->get_topic(), QString("mcts_tree_init"),Qt::CaseInsensitive) == 0)
+        {
+                connect(mqtt_pipe, &MQTT_PIPE::received, this, &MCTSSignalInitiater::query_mcts);
+                init_finish_pipe_ = mqtt_pipe;
+        }
+        else if(QString::compare(mqtt_pipe->get_topic(), QString("mcts_cache_position"),Qt::CaseInsensitive) == 0)
+        {
+                connect(mqtt_pipe, &MQTT_PIPE::received, this, &MCTSSignalInitiater::query_position);
+                cache_query_pipe_ = mqtt_pipe;
+        }
+    }
+
+    if(!cache_query_pipe_) throw;
+
+    tree_search_ = std::make_unique<mcts::TreeSearch>(&move_gen_, 1, max_entries, n_rollouts, cached_positions_.get(), cache_query_pipe_);
+
+    print("MCTS Signal Tree Connected");
 }
 
 void MCTSSignalInitiater::clear_tree()
@@ -55,40 +63,32 @@ void MCTSSignalInitiater::query_mcts(const QMQTT::Message &message)
             is_search_ongoing_ = true;
         }
 
-        ChessBoard que_this =   tree_search_->start_search();
-
-        //send chessboard fen to python... , query position will return and get going again
-
+        tree_search_->start_search();
     }
 }
 
 void MCTSSignalInitiater::query_position(const QMQTT::Message &message)
 {
-     print("query position!");
-
      std::string decoded = QString::fromUtf8(message.payload()).toStdString();
 
      bool ret = this->handshake_message(decoded);
 
      //message will be a fen string of position, then mapped nn idcs with logits return.
 
-     if(ret)
-     {
-         ChessBoard cb {decoded};
-         int z_key = cb.get_zobrist();
-
+//     if(ret)
+//     {
          auto cached_position_data = decode_query_position(decoded);
 
-         cached_positions_->add(cached_position_data.first, cached_position_data.second);
+        cached_positions_->add(cached_position_data.first, cached_position_data.second);
+
+        std::cout << "added " << cached_position_data.first << " to database";
+
+        std::cout << "fen (take first part) : " << decoded << std::endl;
 
         if(is_search_ongoing_)
         {
             query_mcts(init_message_);
         }
-
-         //print(cached_positions_->entries());
-
-     }
 }
 
 bool MCTSSignalInitiater::handshake_message(const std::string &message)
@@ -98,7 +98,7 @@ bool MCTSSignalInitiater::handshake_message(const std::string &message)
 
     bool ret = true;
 
-    print("handshaking message... this wont throw error atm, gotta find a way to check this");
+//    print("handshaking message... this wont throw error atm, gotta find a way to check this");
 
     try
     {
@@ -113,9 +113,9 @@ bool MCTSSignalInitiater::handshake_message(const std::string &message)
     return ret;
 }
 
-std::pair<uint64_t, std::vector<std::pair<int, float>>> MCTSSignalInitiater::decode_query_position(std::string decoded) const
+std::pair<uint64_t, std::map<int, float>> MCTSSignalInitiater::decode_query_position(std::string decoded) const
 {
-    std::pair<uint64_t, std::vector<std::pair<int, float>>> decoded_position_data;
+    std::pair<uint64_t, std::map<int, float>> decoded_position_data;
 
     std::string fen;
 
@@ -157,14 +157,13 @@ std::pair<uint64_t, std::vector<std::pair<int, float>>> MCTSSignalInitiater::dec
             int nn = std::stoi(substrings.at(i));
             float log = QString(substrings.at(i + 1).c_str()).toFloat();
 
-            decoded_position_data.second.emplace_back(std::pair<int, float>
-            (nn, log)   );
+            decoded_position_data.second[nn] = log;
         }
 
-        for(int i = 0 ; i < nn_idcs.size() ; ++i)
-        {
-            std::cout << nn_idcs.at(i) << " : " << nn_logits.at(i) << std::endl;
-        }
+//        for(int i = 0 ; i < nn_idcs.size() ; ++i)
+//        {
+//            std::cout << nn_idcs.at(i) << " : " << nn_logits.at(i) << std::endl;
+//        }
     }
 
     return decoded_position_data;

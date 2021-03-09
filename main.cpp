@@ -1,4 +1,5 @@
 #include <iostream>
+#include <memory>
 
 #include <thread>
 #include <pthread.h>
@@ -25,11 +26,6 @@
 
 #include "tests/rollout_test.h"
 
-//#include <QtCore/QDateTime>
-//#include <QtMqtt/QMqttClient>
-//#include <QtWidgets/QMessageBox>
-
-#include "net/mqtt_client.h"
 #include "mcts/mcts_signal_initiater.h"
 #include "utils/chess_enums.cpp"
 
@@ -38,38 +34,76 @@
 
 #include "mcts/cached_positions.h"
 
+
+#include "net/mqtt_client.h"
+
+
+//QMQTT::Message msg(quint16(), QString("mcts_nn_que"),QString("whatever").toUtf8());
+//publisher.publish(msg);
+
+
 int main(int argc, char** argv)
 {
+    {
+        //sets up mcts environment with mqtt signals in a qapp
         init_tables();
         init_prehash();
 
+        qRegisterMetaType<QMQTT::Message>("QMQTT::Message");
+
         QCoreApplication app(argc, argv);
 
-        std::vector<Subscriber*> subscribers;
+        MQTT_PIPE_THREAD comm_thread;
 
-        std::unique_ptr<Subscriber> mqtt_receiver0 = std::make_unique<Subscriber>();
+        auto host = QHostAddress::LocalHost;
+        auto port = 1883;
 
-        mqtt_receiver0->set_topic(QString("mcts_tree_init"));
-        mqtt_receiver0->connectToHost();
+        {
+            MQTT_PIPE* mqtt_receiver0 = new MQTT_PIPE(host, port);
 
-        std::unique_ptr<Subscriber> mqtt_receiver1 = std::make_unique<Subscriber>();
-        mqtt_receiver1->set_topic(QString("mcts_cache_position"));
-        mqtt_receiver1->connectToHost();
+            mqtt_receiver0->set_topic(QString("mcts_tree_init"));
+            mqtt_receiver0->set_publish_topic(QString("mcts_tree_finish"));
 
-        subscribers.push_back(mqtt_receiver0.get());
-        subscribers.push_back(mqtt_receiver1.get());
+            mqtt_receiver0->connectToHost();
+            comm_thread.append_and_allocate_client(mqtt_receiver0);
+        }
 
-        std::unique_ptr<Publisher> mqtt_publisher = std::make_unique<Publisher>();
+        {
+            MQTT_PIPE* mqtt_receiver1 = new MQTT_PIPE(host, port);
+            mqtt_receiver1->set_topic(QString("mcts_cache_position"));
+            mqtt_receiver1->set_publish_topic(QString("mcts_nn_que"));
 
-        MCTSSignalInitiater mcts_signal_initiater(subscribers, mqtt_publisher.get());
+            mqtt_receiver1->connectToHost();
+            comm_thread.append_and_allocate_client(mqtt_receiver1);
+        }
+
+        MCTSSignalInitiater mcts_signal_initiater(comm_thread);
+
+        comm_thread.start();
 
         return app.exec();
+    }
 
+//    {
+//        init_tables();
+//        init_prehash();
 
+//        ChessBoard cb("2rq2k1/pprbbpp1/4pn1p/3pN3/3BP3/1N6/P1n1BPPP/RQ3RK1 b - - 0 21");
 
+//        MoveGenerator move_gen;
 
+//        auto moves = move_gen.get_legal_moves(cb).first;
 
+//        DataEncoder nn_encoder;
 
+//        moves.print_moves();
+
+//        for(const auto & move :  moves.get_moves())
+//        {
+//            auto nn_idx = nn_encoder.move_as_nn_input(move, cb.get_whitetoact());
+//            std::cout << nn_idx << std::endl;
+//        }
+//    }
 
 
 

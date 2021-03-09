@@ -5,13 +5,15 @@
 
 #include "mcts_node.h"
 #include "core/chess_board.h"
+#include "net/data_encoder.h"
 
 #include "utils/global_utils.cpp"
 
 using namespace mcts;
 
 Rollout::Rollout(MoveGenerator* move_gen) :
-    env_(std::make_unique<BoardWrapper> (move_gen))
+    env_(std::make_unique<BoardWrapper> (move_gen)),
+    encoder_(std::make_unique<DataEncoder>())
 {
 
 }
@@ -49,7 +51,7 @@ void Rollout::perform_rollout(Node *node)
     node->propagate_score_update(score);
 }
 
-void Rollout::expand_node(Node *node, std::vector<std::pair<int, float>> nn_expand_data,  int folder_id)
+void Rollout::expand_node(Node *node, std::map<int, float> nn_expand_data,  int folder_id)
 {
     env_->reset(node->get_board());
 
@@ -57,10 +59,14 @@ void Rollout::expand_node(Node *node, std::vector<std::pair<int, float>> nn_expa
 
     for(int idx = 0 ; idx < moves.size(); ++idx)
     {
+        int nn_idx = encoder_->move_as_nn_input(moves.get(idx));
+
         ChessBoard branch = env_->explore(moves.get(idx));
 
+        float score = nn_expand_data.at(nn_idx); //assert this exist?
+
         //std::unique_ptr<Node> n = std::make_unique<Node> (branch, moves.get(idx), node, idx);
-        node->add_child(branch, moves.get(idx), folder_id);
+        node->add_child(branch, moves.get(idx), folder_id, score);
     }
 
 }
