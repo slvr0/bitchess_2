@@ -29,8 +29,11 @@ std::map<int, float> NetCachedPositions::get(const uint64_t &zobrist_hash_key) c
         std::cout << "element not found in NetCachedPositions : " << zobrist_hash_key;
         return std::map<int, float> ();
     }
+}
 
-
+std::map<int, float> NetCachedPositions::get(const ChessBoard & cb) const
+{
+    return get(cb.get_zobrist());
 }
 
 void NetCachedPositions::del(const uint64_t &zobrist_hash_key)

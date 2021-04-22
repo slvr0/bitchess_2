@@ -38,6 +38,8 @@ std::pair<ChessMoveList, int> MoveGenerator::get_legal_moves(const ChessBoard &c
 
      //could do bit iter over occ here instead. try it later (wasnt faster, bit iter is kinda slow)
 
+    uint64_t our_rooks(0x0);  //check legality on castling
+
     const uint64_t king = cb.get_king();
 
     for(int idx = 0 ; idx < 64 ; ++idx)
@@ -54,7 +56,11 @@ std::pair<ChessMoveList, int> MoveGenerator::get_legal_moves(const ChessBoard &c
         else if(1ULL << idx & cb.get_pawns()) append_pseudolegal_pawnmoves(cb, idx, movelist);
         else if(1ULL << idx & cb.get_knights()) append_pseudolegal_slidermoves(cb, idx, movelist, 'N');
         else if(1ULL << idx & cb.get_bishops()) append_pseudolegal_slidermoves(cb, idx, movelist, 'B');
-        else if(1ULL << idx & cb.get_rooks()) append_pseudolegal_slidermoves(cb, idx, movelist, 'R');
+        else if(1ULL << idx & cb.get_rooks())
+        {
+            append_pseudolegal_slidermoves(cb, idx, movelist, 'R');
+            our_rooks |= 1ULL << idx;
+        }
         else if(1ULL << idx & cb.get_queens()) append_pseudolegal_slidermoves(cb, idx, movelist, 'Q');
 
         else if( 1ULL << idx & cb.get_enemy_pawns())
@@ -170,7 +176,7 @@ std::pair<ChessMoveList, int> MoveGenerator::get_legal_moves(const ChessBoard &c
        }
 
        //we're pinned, but the move is to attack the pinner. is all good
-       else if(is_pinned && 1ULL << to & pp_info.pins.at(pinned_index).second)
+       else if(is_pinned && 1ULL << to & pp_info.pins.at(pinned_index).second && pp_info.pins.at(pinned_index).second & pp_info.capture_mask)
        {
              legal_movelist.add_move(move);
              continue;
@@ -192,23 +198,34 @@ std::pair<ChessMoveList, int> MoveGenerator::get_legal_moves(const ChessBoard &c
      {
         if (cb.castling_.getWe_00())
         {
-            if (((w_csq_00_64 | 1ULL << 1) & occ) == 0 && ((w_csq_00_64 & attack_mask) == 0)) legal_movelist.add_move(ChessMove(4, 6, 'K', "O-O"));
+            if (((w_csq_00_64 | 1ULL << 1) & occ) == 0 && ((w_csq_00_64 & attack_mask) == 0))
+            {
+                if(1ULL << 7 & our_rooks) legal_movelist.add_move(ChessMove(4, 6, 'K', "O-O"));
+            }
         }
-
         if(cb.castling_.getWe_000())
         {
-             if((w_csq_000_64 & occ) == 0 && (w_csq_000_64 & attack_mask) == 0) legal_movelist.add_move( ChessMove(4, 2, 'K', "O-O-O"));
+             if((w_csq_000_64 & occ) == 0 && (w_csq_000_64 & attack_mask) == 0)
+             {
+                  if(1ULL << 0 & our_rooks) legal_movelist.add_move( ChessMove(4, 2, 'K', "O-O-O"));
+             }
         }
      }
      else
     {
         if (cb.castling_.getWe_00())
         {
-            if( (b_csq_00_64 & occ) == 0 && (b_csq_00_64 & attack_mask) == 0) legal_movelist.add_move(ChessMove(3, 1, 'K', "O-O"));
+            if( (b_csq_00_64 & occ) == 0 && (b_csq_00_64 & attack_mask) == 0)
+            {
+                 if(1ULL << 0 & our_rooks)legal_movelist.add_move(ChessMove(3, 1, 'K', "O-O"));
+            }
         }
         if (cb.castling_.getWe_000())
         {
-            if (((b_csq_000_64 | 1ULL << 6) & occ) == 0 && (b_csq_000_64 & attack_mask) == 0) legal_movelist.add_move(ChessMove(3, 5, 'K', "O-O-O"));
+            if (((b_csq_000_64 | 1ULL << 6) & occ) == 0 && (b_csq_000_64 & attack_mask) == 0)
+            {
+                if(1ULL << 7 & our_rooks) legal_movelist.add_move(ChessMove(3, 5, 'K', "O-O-O"));
+            }
         }
      }
     }

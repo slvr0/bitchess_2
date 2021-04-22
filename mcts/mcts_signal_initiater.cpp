@@ -16,8 +16,8 @@ MCTSSignalInitiater::MCTSSignalInitiater(MQTT_PIPE_THREAD& comm_thread, QObject*
     cached_positions_(std::make_unique<NetCachedPositions> ()),
     QObject(parent)
 {
-    int max_entries = 1000;
-    float rollout_entries_ratio = 0.6f;
+    int max_entries =  10000;
+    float rollout_entries_ratio = 1.5f;
     int n_rollouts = int(max_entries * rollout_entries_ratio);
 
     cached_positions_ = std::make_unique<NetCachedPositions> ();
@@ -38,7 +38,7 @@ MCTSSignalInitiater::MCTSSignalInitiater(MQTT_PIPE_THREAD& comm_thread, QObject*
 
     if(!cache_query_pipe_) throw;
 
-    tree_search_ = std::make_unique<mcts::TreeSearch>(&move_gen_, 1, max_entries, n_rollouts, cached_positions_.get(), cache_query_pipe_);
+    tree_search_ = std::make_unique<mcts::TreeSearch>(&move_gen_, 1, max_entries, n_rollouts, cached_positions_.get(), cache_query_pipe_, init_finish_pipe_);
 
     print("MCTS Signal Tree Connected");
 }
@@ -56,11 +56,10 @@ void MCTSSignalInitiater::query_mcts(const QMQTT::Message &message)
 
     if(ret)
     {
-        if(!is_search_ongoing_)
+        if(!tree_search_->get_is_init())
         {
             init_message_ = message;
             tree_search_->init_tree(ChessBoard(decoded));
-            is_search_ongoing_ = true;
         }
 
         tree_search_->start_search();
@@ -69,26 +68,18 @@ void MCTSSignalInitiater::query_mcts(const QMQTT::Message &message)
 
 void MCTSSignalInitiater::query_position(const QMQTT::Message &message)
 {
-     std::string decoded = QString::fromUtf8(message.payload()).toStdString();
+    std::string decoded = QString::fromUtf8(message.payload()).toStdString();
 
-     bool ret = this->handshake_message(decoded);
+    bool ret = this->handshake_message(decoded);
 
-     //message will be a fen string of position, then mapped nn idcs with logits return.
+    auto cached_position_data = decode_query_position(decoded);
 
-//     if(ret)
-//     {
-         auto cached_position_data = decode_query_position(decoded);
+    cached_positions_->add(cached_position_data.first, cached_position_data.second);
 
-        cached_positions_->add(cached_position_data.first, cached_position_data.second);
-
-        std::cout << "added " << cached_position_data.first << " to database";
-
-        std::cout << "fen (take first part) : " << decoded << std::endl;
-
-        if(is_search_ongoing_)
-        {
-            query_mcts(init_message_);
-        }
+    if(tree_search_->get_is_init())
+    {
+        query_mcts(init_message_);
+    }
 }
 
 bool MCTSSignalInitiater::handshake_message(const std::string &message)
@@ -159,11 +150,6 @@ std::pair<uint64_t, std::map<int, float>> MCTSSignalInitiater::decode_query_posi
 
             decoded_position_data.second[nn] = log;
         }
-
-//        for(int i = 0 ; i < nn_idcs.size() ; ++i)
-//        {
-//            std::cout << nn_idcs.at(i) << " : " << nn_logits.at(i) << std::endl;
-//        }
     }
 
     return decoded_position_data;

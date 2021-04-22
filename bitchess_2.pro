@@ -1,7 +1,7 @@
 TEMPLATE = app
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += core widgets
-QMAKE_CXXFLAGS += -mssse3 -O3 -std=gnu++17 -mavx
+QMAKE_CXXFLAGS += -mssse3 -O3 -std=gnu++17 -mavx -fno-stack-protector
 
 QT       += core gui network
 

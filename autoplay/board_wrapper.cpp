@@ -144,7 +144,9 @@ ChessBoard BoardWrapper::explore(const int &move_idx)
 void BoardWrapper::reset(const ChessBoard &cb)
 {
     movelist_.reset();
-    cb_ = cb;
+
+    cb_ = ChessBoard(cb.fen());
+
     has_queued_ = false;
 
     starting_color_white_ = cb.get_whitetoact();

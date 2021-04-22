@@ -60,6 +60,8 @@ public:
     void update_zobrist(const ChessMove& move);
     inline uint64_t get_zobrist() const { return z_hash_;}
 
+    void check_castle_legality();
+
     std::string fen() const ;
 
 private :

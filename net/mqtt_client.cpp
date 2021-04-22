@@ -14,7 +14,7 @@ void MQTT_PIPE::set_topic(const QString &topic)
 {
     topic_ = topic;
 
-    qDebug () << "client topic set to : " << topic_ << "\n";
+    qDebug () << "client topic set to : " << topic_ << "";
 }
 
 void MQTT_PIPE::set_topic(std::string &topic)
@@ -34,7 +34,7 @@ bool MQTT_PIPE::get_is_connected() const
 
 void MQTT_PIPE::on_connect()
 {
-    qDebug() << "client  connected!\n";
+    qDebug() << "client  connected!";
 
     subscribe(topic_, qos_);
 }
@@ -76,7 +76,7 @@ void MQTT_PIPE::publish_message(const QString &message)
     qmqtt_msg.setTopic(publish_topic_);
     qmqtt_msg.setPayload(message.toUtf8());
 
-    qDebug() << "publishing...  to topic = " << publish_topic_ << " message = " << message << "\n";
+//    qDebug() << "publishing...  to topic = " << publish_topic_ << " message = " << message << "\n";
 
     publish(qmqtt_msg);
 }
@@ -89,7 +89,7 @@ MQTT_PIPE_THREAD::MQTT_PIPE_THREAD(QObject *parent) :
 
 void MQTT_PIPE_THREAD::append_and_allocate_client(MQTT_PIPE* client)
 {
-    //client->moveToThread(this);
+//    client->moveToThread(this);
 
     clients_.push_back(client);
 }

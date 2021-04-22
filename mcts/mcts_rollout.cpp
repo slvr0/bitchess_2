@@ -1,7 +1,9 @@
 #include "mcts_rollout.h"
 
+#include <iostream>
 #include <stdlib.h>
 #include <time.h>
+#include <map>
 
 #include "mcts_node.h"
 #include "core/chess_board.h"
@@ -59,11 +61,29 @@ void Rollout::expand_node(Node *node, std::map<int, float> nn_expand_data,  int 
 
     for(int idx = 0 ; idx < moves.size(); ++idx)
     {
-        int nn_idx = encoder_->move_as_nn_input(moves.get(idx));
+        int nn_idx = encoder_->move_as_nn_input(moves.get(idx)); // need to compare to this
 
         ChessBoard branch = env_->explore(moves.get(idx));
 
-        float score = nn_expand_data.at(nn_idx); //assert this exist?
+        float score = 0.f;
+
+        if(nn_expand_data.find(nn_idx) != nn_expand_data.end())
+        {
+             score = nn_expand_data.at(nn_idx); //assert this exist?;
+        }
+        else
+        {
+            //std::cout << "misscommunication when trying to fill in branch scores, investigate\n";
+            std::cout << "error, mismatch expand node"<< std::endl;
+            std::cout << node->cb_.fen() << std::endl;
+            for(const auto & move : moves.get_moves())
+            {
+                auto nn_idx = encoder_->move_as_nn_input(move);
+                std::cout << nn_idx << ",";
+            }
+            std::cout << std::endl;
+            score = 0.f;
+        }
 
         //std::unique_ptr<Node> n = std::make_unique<Node> (branch, moves.get(idx), node, idx);
         node->add_child(branch, moves.get(idx), folder_id, score);

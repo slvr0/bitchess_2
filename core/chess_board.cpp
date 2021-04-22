@@ -352,6 +352,73 @@ void ChessBoard::update_zobrist(const ChessMove &move)
     }
 }
 
+void ChessBoard::check_castle_legality()
+{
+    if(white_toact_)
+    {
+        if((king_ & 1ULL << 4) == 0)
+        {
+            //disallow castling completely
+            castling_.setWe_00(false);
+            castling_.setWe_000(false);
+        }
+        if((enemy_king_ & 1ULL << 60) == 0)
+        {
+            //disallow castling completely
+            castling_.setEnemy_00(false);
+            castling_.setEnemy_000(false);
+        }
+        if((rooks_ & 1ULL << 7) == 0)
+        {
+            castling_.setWe_00(false);
+        }
+        if((rooks_ & 1ULL << 0) == 0)
+        {
+            castling_.setWe_000(false);
+        }
+        if((enemy_rooks_ & 1ULL <<63) == 0)
+        {
+            castling_.setEnemy_00(false);
+        }
+        if((enemy_rooks_ & 1ULL << 56) == 0)
+        {
+            castling_.setEnemy_000(false);
+        }
+    }
+    else
+    {
+        if((king_ & 1ULL << 3) == 0)
+        {
+            //disallow castling completely
+            castling_.setWe_00(false);
+            castling_.setWe_000(false);
+        }
+        if((enemy_king_ & 1ULL << 59) == 0)
+        {
+            //disallow castling completely
+            castling_.setEnemy_00(false);
+            castling_.setEnemy_000(false);
+        }
+
+        if((rooks_ & 1ULL << 7) == 0)
+        {
+            castling_.setWe_000(false);
+        }
+        if((rooks_ & 1ULL << 0) == 0)
+        {
+            castling_.setWe_00(false);
+        }
+        if((enemy_rooks_ & 1ULL <<63) == 0)
+        {
+            castling_.setEnemy_000(false);
+        }
+        if((enemy_rooks_ & 1ULL << 56) == 0)
+        {
+            castling_.setEnemy_00(false);
+        }
+    }
+}
+
 std::string ChessBoard::fen() const
 {
 
@@ -409,10 +476,10 @@ std::string ChessBoard::fen() const
     }
     else
     {
-        if(we_00) castle_string.push_back('q');
-        if(we_000) castle_string.push_back('k');
         if(e_00) castle_string.push_back('Q');
         if(e_000) castle_string.push_back('K');
+        if(we_00) castle_string.push_back('q');
+        if(we_000) castle_string.push_back('k');
     }
     if(!we_00 && !we_000 && !e_00 && !e_000)fen.append(" -");
     else fen.append(castle_string);
@@ -423,7 +490,9 @@ std::string ChessBoard::fen() const
     if(enpassant_ == -1) enp_not = " -";
     else
     {
-        enp_not = " " +board_notations[enpassant_];
+        if(white_toact_ ) enp_not = " " +board_notations[enpassant_];
+        else enp_not = " " +board_notations[63 - enpassant_];
+
         std::transform(enp_not.begin(), enp_not.end(),enp_not.begin(), tolower);
     }
 
@@ -517,11 +586,11 @@ void ChessBoard::set_from_fen(std::string fen_string)
 
         if(white_toact_ != 1)
         {
-            print("Flip starting position on board from fen status");
-            //flip
-//            white_toact_ = 1; //then flip it to black
             this->mirror();
+            white_toact_ = 0;
         }
+
+        check_castle_legality();
 
         this->set_zobrist();
 }

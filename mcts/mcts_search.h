@@ -9,6 +9,7 @@
 #include "net/data_encoder.h"
 #include "net/mqtt_client.h"
 #include "mcts/cached_positions.h"
+#include "utils/global_utils.cpp"
 
 namespace mcts
 {
@@ -17,7 +18,7 @@ namespace mcts
 class TreeSearch
 {
 public:
-    TreeSearch(MoveGenerator* move_gen, int folder_id, int max_entries, int requested_rollouts,  NetCachedPositions* cached_positions, MQTT_PIPE * mqtt_query_cache_pipe);
+    TreeSearch(MoveGenerator* move_gen, int folder_id, int max_entries, int requested_rollouts,  NetCachedPositions* cached_positions, MQTT_PIPE * mqtt_query_cache_pipe , MQTT_PIPE* mqtt_init_finish_pipe);
 
     void init_tree(const ChessBoard & start_position);
     void clear_tree();
@@ -30,7 +31,7 @@ public:
 
     void log_data(std::string filepath);
 
-    int get_best_move() const;
+    void finish_search_and_publish_best_move();
 
     int get_entries() const;
 
@@ -38,9 +39,13 @@ public:
 
     void status_tree() const;
 
+    bool get_is_init() const;
+    void set_is_init(bool is_init);
+
 private:
 
     MQTT_PIPE * mqtt_query_cache_pipe_;
+    MQTT_PIPE* mqtt_init_finish_pipe_;
 
     MoveGenerator* move_gen_ = nullptr;
 
@@ -53,6 +58,7 @@ private:
 
     DataEncoder encoder_;
 
+    int n_nonleaf_traversal_;
     int folder_id_;
 
     int total_entries_;
@@ -61,7 +67,16 @@ private:
     int total_rollouts_;
     int max_rollouts_;
 
+    //checkpoint status for current search
+    int chkpt_ = 0;
+    int chkpt_ct_ = 0;
+    bool is_queuing_search_;
+
     Timer t0_;
+
+    bool is_init_;
+
+
 
 };
 }

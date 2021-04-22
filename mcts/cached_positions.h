@@ -23,6 +23,8 @@ public:
     int entries()const ;
 
     std::map<int, float> get(const uint64_t & zobrist_hash_key) const;
+    std::map<int, float> get(const ChessBoard & cb) const;
+
     void del(const uint64_t &zobrist_hash_key);
     void add(const uint64_t &zobrist_hash_key,  std::map<int, float> nn_logs);
 
